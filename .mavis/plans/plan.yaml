@@ -1,0 +1,100 @@
+﻿version: 1
+plan:
+  name: 'estatisticas-app-review-e-correcoes'
+  max_concurrency: 3
+  max_consecutive_failures: 2
+  max_cycles: 8
+tasks:
+  - id: code-review
+    title: 'Code review completo do estatisticas.html'
+    prompt: |
+      Faz um code review completo do ficheiro C:\Users\bruno\.mavis\stat-lab\estatisticas.html (950 linhas).
+      
+      Lista TODOS os problemas encontrados nas seguintes categorias:
+      
+      1. **BUGS CRÍTICOS** - código que pode quebrar, lógica errada, vars não definidas
+      2. **BUGS DE UX** - fluxos confusos, feedback em falta, estados não tratados
+      3. **MOBILE/Responsive** - problemas de layout em ecrã pequeno
+      4. **MELHORIAS DE UX** - coisas que melhorariam a experiência sem mudar a arquitectura
+      5. **SEGURANÇA/Performance** - localStorage mal gerido, memory leaks, etc.
+      
+      Para cada problema indica:
+      - Linha aproximada
+      - Descrição do problema
+      - Gravidade (crítico / alto / médio / baixo)
+      - Sugestão de correção concreta
+      
+      Usa o contexto:
+      - App de estatísticas de futebol para o São Manços FC
+      - Cronómetro com persistência em background (localStorage)
+      - Heatmap de perdas por zona no campo
+      - 3 abas: Jogo / Análise / Configs
+      - 18 jogadores (11 titulares + 7 suplentes)
+      - localStorage prefix: sl_
+      
+      Reporta em formato markdown estruturado.
+    assigned_to: general
+    verified_by: verifier
+    verify_prompt: |
+      Lê o código de C:\Users\bruno\.mavis\stat-lab\estatisticas.html e verifica independentemente se os problemas listados pelo reviewer são válidos.
+      Para cada problema, confirma ou refuta. Se encontrares problemas adicionais, adiciona-os.
+      Reporta em formato markdown.
+    timeout_ms: 600000
+
+  - id: implement-fixes
+    title: 'Implementar correções e melhorias'
+    prompt: |
+      Com base no code review feito na tarefa anterior, IMPLEMENTA as correções no ficheiro 
+      C:\Users\bruno\.mavis\stat-lab\estatisticas.html.
+      
+      Prioridade:
+      1. CRÍTICO - corrige primeiro (não discutir, apenas fazer)
+      2. ALTO - corrige se rápido, senão documenta
+      3. MÉDIO/BAIXO - só corrige se for muito simples e rápido
+      
+      Режим de trabalho:
+      - Faz as edições diretamente no ficheiro
+      - Usa a tool Edit para mudar blocos específicos
+      - Faz commit intermédio se necessário
+      - Reporta o que foi corrigido e o que foi deixado para análise futura
+      
+      Problemas conhecidos já identificados (verifica se ainda existem):
+      - Linhas 620-625: código `switchTab` fora do window.onload - CORRIGIR
+      - `addOppQuick` usa `prompt()` nativo - substituir por modal
+      - Heatmap: zonas estão com opacidade baixa (0.15) e fundo branco mesmo com dados
+      - Responsive: stats-grid em 1 coluna no mobile pequeno
+    assigned_to: coder
+    depends_on: [code-review]
+    verified_by: verifier
+    verify_prompt: |
+      Depois de implementadas as correções, lè o ficheiro C:\Users\bruno\.mavis\stat-lab\estatisticas.html 
+      e verifica:
+      1. O código de switchTab está dentro de uma função (não colado fora do onload)
+      2. A heatmap usa cores mais visíveis (vermelho mais forte para perdas)
+      3. O responsive funciona bem em 320px e 768px
+      4. Não há erros de consola óbvios (vars não definidas)
+      Reporta cada verificação como PASS ou FAIL com justificação.
+    timeout_ms: 900000
+
+  - id: visual-test
+    title: 'Teste visual e de fluxo da app'
+    prompt: |
+      Faz uma análise visual e de fluxos da app estatisticas.html do ponto de vista do utilizador.
+      
+      Usa webfetch para ver o HTML em stat-lab-sable.vercel.app/estatisticas.html e identifica:
+      
+      1. **Layout e design** - o header, tabs, cards estão bem alinhados? As cores estão correctas?
+      2. **Fluxo principal** - seleciona jogador > regista ação > verifica timeline > verifica stats
+         (simula mentalmente os passos)
+      3. **Problemas de UI** - botões demasiado pequenos, texto sobreposto, scroll partido
+      4. **Constrangimentos mobile** - num ecrã de 375px largura, como fica o layout?
+      5. **Acessibilidade** - cores dos botões têm contraste suficiente? Os botões são tocáveis em mobile?
+      
+      Reporta em markdown com prioridades.
+    assigned_to: general
+    verified_by: verifier
+    verify_prompt: |
+      Verifica independentemente as conclusões do teste visual.
+      Tens acesso ao código em C:\Users\bruno\.mavis\stat-lab\estatisticas.html.
+      Confirma ou refuta cada ponto e adiciona problemas que o reviewer pode ter perdido.
+    timeout_ms: 600000
