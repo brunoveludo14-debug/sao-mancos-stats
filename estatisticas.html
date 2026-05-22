@@ -68,7 +68,7 @@ header::-webkit-scrollbar{display:none}
   cursor:pointer;transition:all .15s;
 }
 .timer-btn.play{background:#3ddc84;color:#0c1610;border-color:#3ddc84;font-size:14px}
-.timer-btn.running{color:#3ddc84;border-color:#3ddc84}
+.timer-btn.running{color:#3ddc84;border-color:#3ddc84;animation:pulse 1s infinite}
 .timer-btn:hover{background:#243630;color:#fff}
 .timer-btn.play:hover{background:#4de896}
 .half-toggle{display:flex;border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden}
@@ -193,6 +193,8 @@ header::-webkit-scrollbar{display:none}
   padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;
 }
 .undo-btn:hover{background:rgba(61,220,132,.2)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 
 /* ── Opponent ── */
 .opp-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
@@ -523,7 +525,8 @@ header::-webkit-scrollbar{display:none}
 
     <div class="config-card" style="border-color:rgba(255,74,74,.2);">
       <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
-      <button class="btn-danger" onclick="hardReset()">🗑️ Limpar Todos os Dados (Novo Jogo)</button>
+      <button class="btn-danger" onclick="hardReset()">🗑️ Limpar Tudo (Reset Total)</button>
+      <button class="btn-danger" style="margin-top:8px;background:rgba(255,184,74,.1);border-color:rgba(255,184,74,.3);color:#ffb84a;" onclick="clearStats()">🧹 Limpar só Estatísticas</button>
     </div>
   </div>
 </div>
@@ -575,13 +578,28 @@ let players = JSON.parse(localStorage.getItem('sl_team')) || JSON.parse(JSON.str
 let logs = JSON.parse(localStorage.getItem('sl_logs')) || [];
 let oppLogs = JSON.parse(localStorage.getItem('sl_opp_logs')) || [];
 let seconds = parseInt(localStorage.getItem('sl_time') || '0');
+let isRunning = localStorage.getItem('sl_running') === '1';
+let startTimestamp = parseInt(localStorage.getItem('sl_start_ts') || '0');
+let timerInterval = null;
+
 let selectedPlayer = null;
 let pendingAction = null;
 let pendingScore = 0;
-let timerInterval = null;
-let isRunning = false;
 let half = parseInt(localStorage.getItem('sl_half') || '1');
 let statHalfFilter = 'all';
+
+// Restore timer if it was running
+if (isRunning && startTimestamp > 0) {
+  const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+  seconds = parseInt(localStorage.getItem('sl_seconds_at_start') || '0') + elapsed;
+  document.getElementById('btn-play').textContent = '⏸';
+  document.getElementById('btn-play').classList.add('running');
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+    seconds = parseInt(localStorage.getItem('sl_seconds_at_start') || '0') + elapsed;
+    updateTimer();
+  }, 1000);
+}
 
 window.onload = () => {
   renderPlayerGrid();
@@ -599,8 +617,6 @@ window.onload = () => {
     });
   });
 };
-
-function switchTab(tab) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
@@ -613,19 +629,36 @@ function updateTimer() {
   const s = String(seconds % 60).padStart(2,'0');
   document.getElementById('timer-display').textContent = m + ':' + s;
   localStorage.setItem('sl_time', seconds);
+  localStorage.setItem('sl_running', isRunning ? '1' : '0');
+  if (isRunning) {
+    localStorage.setItem('sl_seconds_at_start', seconds);
+    localStorage.setItem('sl_start_ts', startTimestamp);
+  }
 }
 function toggleTimer() {
   const btn = document.getElementById('btn-play');
   if (isRunning) {
     clearInterval(timerInterval); isRunning = false;
+    localStorage.setItem('sl_running', '0');
     btn.textContent = '▶'; btn.classList.remove('running');
   } else {
-    isRunning = true; btn.textContent = '⏸'; btn.classList.add('running');
-    timerInterval = setInterval(() => { seconds++; updateTimer(); }, 1000);
+    isRunning = true;
+    startTimestamp = Date.now();
+    localStorage.setItem('sl_start_ts', startTimestamp);
+    localStorage.setItem('sl_seconds_at_start', seconds);
+    btn.textContent = '⏸'; btn.classList.add('running');
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      seconds = parseInt(localStorage.getItem('sl_seconds_at_start') || '0') + elapsed;
+      updateTimer();
+    }, 1000);
   }
 }
 function resetTimer() {
   clearInterval(timerInterval); isRunning = false; seconds = 0;
+  localStorage.setItem('sl_running', '0');
+  localStorage.setItem('sl_start_ts', '0');
+  localStorage.setItem('sl_seconds_at_start', '0');
   updateTimer();
   document.getElementById('btn-play').textContent = '▶';
   document.getElementById('btn-play').classList.remove('running');
@@ -871,14 +904,27 @@ function exportDirectExcel() {
 }
 
 function hardReset() {
-  if (!confirm('Apagar TODOS os dados? Isto não pode ser revertido!')) return;
+  if (!confirm('Apagar TODOS os dados? Equipa, golos, stats, tudo! Isto não pode ser revertido!')) return;
   localStorage.removeItem('sl_logs'); localStorage.removeItem('sl_opp_logs');
   localStorage.removeItem('sl_subs'); localStorage.removeItem('sl_time');
   localStorage.removeItem('sl_half'); localStorage.removeItem('sl_history');
+  localStorage.removeItem('sl_running'); localStorage.removeItem('sl_start_ts');
+  localStorage.removeItem('sl_seconds_at_start');
   logs = []; oppLogs = []; seconds = 0; half = 1;
   resetTimer(); setHalf(1);
   renderPlayerGrid(); updateStats(); renderOppActions(); renderTimeline();
-  showToast('🗑️ Dados apagados!');
+  showToast('🗑️ Todos os dados apagados!');
+}
+
+function clearStats() {
+  if (!confirm('Apagar golos e estatísticas? (Equipa mantém-se)')) return;
+  localStorage.removeItem('sl_logs'); localStorage.removeItem('sl_opp_logs');
+  localStorage.removeItem('sl_history');
+  localStorage.removeItem('sl_time'); localStorage.removeItem('sl_running');
+  localStorage.removeItem('sl_start_ts'); localStorage.removeItem('sl_seconds_at_start');
+  logs = []; oppLogs = []; seconds = 0;
+  resetTimer(); updateStats(); renderOppActions(); renderTimeline();
+  showToast('🧹 Estatísticas limpas!');
 }
 
 function showToast(msg) {
