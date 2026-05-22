@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>São Manços — Estatísticas</title>
+<meta name="theme-color" content="#0c1610">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="StatsLive">
+<meta name="description" content="App de estatísticas de jogo ao vivo para o São Manços FC">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230c1610'/><circle cx='50' cy='50' r='35' fill='none' stroke='%233ddc84' stroke-width='5'/><path d='M50 15 L50 85 M15 50 L85 50' stroke='%233ddc84' stroke-width='3' opacity='0.5'/><text x='50' y='95' font-family='Arial' font-size='20' font-weight='900' fill='%233ddc84' text-anchor='middle'>SL</text></svg>">
+<title>StatsLive — São Manços FC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 body{
   background:#0c1610;color:#fff;
   font-family:'Inter',system-ui,sans-serif;
@@ -391,15 +399,43 @@ header::-webkit-scrollbar{display:none}
   .card{padding:16px}
   .timer-display{font-size:34px}
   .score-val{font-size:40px}
+  .sub-card{padding:16px}
+  .timer-panel{padding:14px 18px;gap:14px}
 }
-@media(max-width:400px){
-  .tab-btn{padding:4px 10px;font-size:11px}
-  .actions-grid{grid-template-columns:repeat(2,1fr)}
-  .score-val{font-size:26px}
-  .timer-display{font-size:22px}
+
+/* Tablet */
+@media(min-width:481px) and (max-width:767px){
   .stats-grid{grid-template-columns:repeat(2,1fr)}
-  .players-grid{grid-template-columns:repeat(4,1fr)}
-  .player-btn{min-height:54px}
+  .players-grid{grid-template-columns:repeat(6,1fr)}
+  .timer-display{font-size:26px}
+  .timer-panel{gap:8px;padding:10px 12px}
+}
+
+/* Mobile small */
+@media(max-width:480px){
+  .tab-btn{padding:4px 10px;font-size:11px}
+  .actions-grid{grid-template-columns:repeat(3,1fr)}
+  .score-val{font-size:26px}
+  .timer-display{font-size:24px}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .players-grid{grid-template-columns:repeat(4,1fr);gap:4px}
+  .player-btn{min-height:52px;padding:6px 2px}
+  .player-num{font-size:14px}
+  .player-name{font-size:8px}
+  .card{padding:10px}
+  .main{padding:8px;gap:8px}
+  .timer-panel{padding:8px 10px;gap:6px}
+  .timer-btn-ghost{padding:6px 10px;font-size:11px}
+  .half-btn{padding:6px 10px;font-size:11px}
+  .header{padding:0 8px;height:44px}
+  .action-btn{min-height:46px;font-size:10px;padding:6px 3px}
+  .stat-card{padding:10px}
+  .pitch-heatmap-wrap{margin-top:4px}
+  .sub-card{padding:10px}
+  .sub-btn{font-size:10px;padding:5px 8px}
+  .config-card{padding:12px}
+  .config-title{font-size:12px}
+  .config-note{font-size:11px}
 }
 </style>
 </head>
@@ -413,7 +449,8 @@ header::-webkit-scrollbar{display:none}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
-      São Manços — Estatísticas
+      São Manços FC
+      <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.35);">· StatsLive</span>
     </div>
     <div class="header-tabs">
       <button class="tab-btn active" onclick="switchTab('jogo')">1. Jogo</button>
@@ -583,7 +620,7 @@ header::-webkit-scrollbar{display:none}
       <button class="btn-save" onclick="saveMatchToHistory()">💾 Guardar Jogo</button>
     </div>
     <div style="margin-top:8px;">
-      <input id="opp-name-input" type="text" placeholder="Nome do adversário (ex: Benfica)" value="${opponentName}" oninput="opponentName=this.value;localStorage.setItem('sl_opponent',opponentName)" style="width:100%;background:#1c2a20;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px;border-radius:8px;font-size:13px;margin-bottom:8px;">
+      <input id="opp-name-input" type="text" placeholder="Nome do adversário (ex: Benfica)" style="width:100%;background:#1c2a20;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
     </div>
     <div id="match-history" style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
@@ -613,6 +650,7 @@ header::-webkit-scrollbar{display:none}
     <div class="config-card" style="border-color:rgba(255,74,74,.2);">
       <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
       <button class="btn-danger" style="margin-top:4px;" onclick="hardReset()">🗑️ Reset Total (apaga tudo)</button>
+      <button class="btn-danger" style="margin-top:6px;background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.3);color:#3ddc84;" onclick="installApp()">📲 Instalar App</button>
     </div>
   </div>
 </div>
@@ -731,6 +769,11 @@ window.onload = () => {
   renderOppActions();
   renderTimeline();
   renderMatchHistory();
+  document.getElementById('opp-name-input').value = opponentName;
+  document.getElementById('opp-name-input').addEventListener('input', function() {
+    opponentName = this.value;
+    localStorage.setItem('sl_opponent', opponentName);
+  });
   document.querySelectorAll('.hm-zone').forEach(el => {
     el.addEventListener('click', () => {
       const zone = el.dataset.zone;
@@ -1226,6 +1269,26 @@ function clearStats() {
 function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg;
   t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2800);
+}
+
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btns = document.querySelectorAll('.install-btn');
+  btns.forEach(b => b.style.display = 'inline-block');
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') showToast('📲 App a instalar...');
+      deferredPrompt = null;
+    });
+  } else {
+    showToast('💡 Usa o menu do navegador → Adicionar ao ecrã inicial');
+  }
 }
 </script>
 </body>
