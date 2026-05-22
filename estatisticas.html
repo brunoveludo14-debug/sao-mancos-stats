@@ -323,7 +323,9 @@ header::-webkit-scrollbar{display:none}
   .actions-grid{grid-template-columns:repeat(2,1fr)}
   .score-val{font-size:26px}
   .timer-display{font-size:22px}
-  .stats-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .players-grid{grid-template-columns:repeat(4,1fr)}
+  .player-btn{min-height:54px}
 }
 </style>
 </head>
@@ -550,6 +552,25 @@ header::-webkit-scrollbar{display:none}
   </div>
 </div>
 
+<!-- OPP ZONE MODAL -->
+<div id="opp-zone-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;flex-direction:column;justify-content:center;align-items:center;padding:20px;">
+  <div class="modal-box">
+    <div class="modal-title" id="opp-zone-title">Zona do campo</div>
+    <div class="zone-grid">
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Esq.')">Ataque Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Centro')">Ataque Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Dir.')">Ataque Dir.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Esq.')">Meio Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Centro')">Meio Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Dir.')">Meio Dir.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Esq.')">Defesa Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Centro')">Defesa Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Dir.')">Defesa Dir.</button>
+    </div>
+    <button class="cancel-btn" onclick="closeOppZoneModal()">Cancelar</button>
+  </div>
+</div>
+
 <script>
 const ZONAS = ['Ataque Esq.','Ataque Centro','Ataque Dir.','Meio Esq.','Meio Centro','Meio Dir.','Defesa Esq.','Defesa Centro','Defesa Dir.'];
 const ACTIONS = [
@@ -585,6 +606,7 @@ let timerInterval = null;
 let selectedPlayer = null;
 let pendingAction = null;
 let pendingScore = 0;
+let pendingOppAction = null;
 let half = parseInt(localStorage.getItem('sl_half') || '1');
 let statHalfFilter = 'all';
 
@@ -617,10 +639,13 @@ window.onload = () => {
     });
   });
 };
+  function switchTab(tab) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
-  event.target.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.includes(tab === 'jogo' ? '1.' : tab === 'stats' ? '2.' : '3.')) b.classList.add('active');
+  });
   if (tab === 'stats') updateStats();
 }
 
@@ -767,8 +792,9 @@ function updateStats() {
     const c = zCounts[z] || 0;
     const numEl = el.querySelector('.zone-num');
     if (numEl) numEl.textContent = c > 0 ? c : '';
-    el.style.background = c > 0 ? `rgba(255,74,74,${0.15 + (c / maxC) * 0.7})` : 'rgba(255,255,255,.03)';
+    el.style.background = c > 0 ? `rgba(255,74,74,${0.25 + (c / maxC) * 0.75})` : 'rgba(255,255,255,.03)';
     el.style.color = c > 0 ? '#fff' : 'rgba(255,255,255,.25)';
+    el.style.fontWeight = c > 0 ? '800' : '700';
   });
 
   const counts = {}; flog.forEach(l => { counts[l.player] = (counts[l.player] || 0) + 1; });
@@ -809,12 +835,22 @@ function undoLastAction() {
 }
 
 function addOppQuick(action) {
-  const zone = prompt('Zona do campo:', 'Meio Centro') || 'Meio Centro';
+  pendingOppAction = action;
+  document.getElementById('opp-zone-title').textContent = action + ' — Zona do campo';
+  document.getElementById('opp-zone-modal').style.display = 'flex';
+}
+function closeOppZoneModal() {
+  document.getElementById('opp-zone-modal').style.display = 'none';
+  pendingOppAction = null;
+}
+function confirmOppZone(zone) {
+  if (!pendingOppAction) return;
   const min = Math.floor(seconds / 60);
-  oppLogs.unshift({id:Date.now(),min,action,zone,half});
+  oppLogs.unshift({id:Date.now(),min,action:pendingOppAction,zone,half});
   localStorage.setItem('sl_opp_logs', JSON.stringify(oppLogs));
+  closeOppZoneModal();
   renderOppActions(); updateStats();
-  showToast('🟥 ' + action + ' registado');
+  showToast('🟥 ' + pendingOppAction + ' — ' + zone);
 }
 function renderOppActions() {
   document.getElementById('opp-actions-list').innerHTML = oppLogs.slice(0,5).map(o =>
