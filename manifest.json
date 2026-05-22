@@ -1,5 +1,5 @@
 {
-  "name": "StatsLive — São Manços FC",
+  "name": "StatsLive",
   "short_name": "StatsLive",
   "description": "App de estatísticas de jogo ao vivo",
   "start_url": "/estatisticas.html",
