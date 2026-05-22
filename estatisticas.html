@@ -710,10 +710,22 @@ if (isRunning && startTimestamp > 0) {
   }, 1000);
 }
 
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  const labels = {jogo:'1.',stats:'2.',equipa:'3.'};
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.includes(labels[tab])) b.classList.add('active');
+  });
+  if (tab === 'stats') updateStats();
+}
+
 window.onload = () => {
   renderPlayerGrid();
   renderActionGrid();
   renderTeamEditor();
+  renderSubRow();
   updateTimer();
   updateStats();
   renderOppActions();
@@ -989,11 +1001,8 @@ function renderTimeline() {
       <span class="tl-zone">${l.zone}</span>
       <button class="tl-del" data-id="${l.id}" onclick="deleteLog(${l.id})" title="Apagar">✕</button>
     </div>`;
-  }).join('') || '<div class="empty">Sem ações registadas</div>';
+}).join('') || '<div class="empty">Sem ações registadas</div>';
 }
-
-let deleteConfirmId = null;
-let deleteConfirmTimer = null;
 
 let deleteConfirmId = null;
 let deleteConfirmTimer = null;
