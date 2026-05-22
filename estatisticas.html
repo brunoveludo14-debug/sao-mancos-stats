@@ -255,6 +255,24 @@ header::-webkit-scrollbar{display:none}
 .opp-del:hover{opacity:1;background:rgba(192,96,224,.2)}
 .opp-del.confirm{opacity:1;background:rgba(255,74,74,.3);border-color:rgba(255,74,74,.6);animation:confirmBlink .3s ease}
 
+/* ── Substitutions ── */
+.sub-card{background:#16241b;border:1px solid rgba(61,220,132,.1);border-radius:10px;padding:12px}
+.sub-row{display:flex;gap:6px;flex-wrap:wrap}
+.sub-btn{
+  padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;
+}
+.sub-btn.out{background:rgba(255,74,74,.12);border:1px solid rgba(255,74,74,.3);color:#ff6b6b}
+.sub-btn.out:hover{background:rgba(255,74,74,.2)}
+.sub-btn.in{background:rgba(61,220,132,.12);border:1px solid rgba(61,220,132,.3);color:#3ddc84}
+.sub-btn.in:hover{background:rgba(61,220,132,.2)}
+.sub-btn.in:disabled{opacity:.3;cursor:not-allowed}
+.sub-log{display:flex;align-items:center;gap:6px;font-size:10px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.sub-log .out-player{color:#ff6b6b;font-weight:600}
+.sub-log .arrow{color:rgba(255,255,255,.3)}
+.sub-log .in-player{color:#3ddc84;font-weight:600}
+.sub-log .sub-time{color:rgba(255,255,255,.3);margin-left:auto}
+
 /* ── Filter toggle ── */
 .filter-row{display:flex;gap:4px;margin-bottom:4px}
 .filter-btn{
@@ -298,6 +316,15 @@ header::-webkit-scrollbar{display:none}
 }
 .hm-zone:hover{transform:scale(1.04);z-index:2}
 .hm-zone .zone-num{position:absolute;bottom:2px;right:4px;font-size:8px;font-weight:600;opacity:.7}
+.hm-zone .zone-tooltip{
+  position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);
+  background:#0c1610;border:1px solid #2a2a2a;border-radius:6px;
+  padding:4px 8px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;
+  white-space:nowrap;
+}
+.hm-zone:hover .zone-tooltip,
+.hm-zone:focus .zone-tooltip{opacity:1}
 
 /* ── Configs / Equipa ── */
 .config-card{
@@ -438,6 +465,12 @@ header::-webkit-scrollbar{display:none}
       <div class="players-grid" id="players-grid-suplentes"></div>
     </div>
 
+    <div class="sub-card">
+      <div class="section-title">🔄 Substituições</div>
+      <div class="sub-row" id="sub-row"></div>
+      <div id="sub-log-list"></div>
+    </div>
+
     <div class="card">
       <div class="section-title">2. Registar Ação</div>
       <div class="actions-grid" id="actions-grid"></div>
@@ -522,15 +555,15 @@ header::-webkit-scrollbar{display:none}
             <circle cx="34" cy="35" r=".4" fill="rgba(255,255,255,.6)" stroke="none"/>
           </svg>
           <div class="zone-overlay">
-            <div class="hm-zone" id="hm-0" data-zone="Ataque Esq."><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-1" data-zone="Ataque Centro"><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-2" data-zone="Ataque Dir."><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-3" data-zone="Meio Esq."><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-4" data-zone="Meio Centro"><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-5" data-zone="Meio Dir."><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-6" data-zone="Defesa Esq."><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-7" data-zone="Defesa Centro"><span class="zone-num"></span></div>
-            <div class="hm-zone" id="hm-8" data-zone="Defesa Dir."><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-0" data-zone="Ataque Esq."><span class="zone-tooltip">Ataque Esq. — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-1" data-zone="Ataque Centro"><span class="zone-tooltip">Ataque Centro — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-2" data-zone="Ataque Dir."><span class="zone-tooltip">Ataque Dir. — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-3" data-zone="Meio Esq."><span class="zone-tooltip">Meio Esq. — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-4" data-zone="Meio Centro"><span class="zone-tooltip">Meio Centro — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-5" data-zone="Meio Dir."><span class="zone-tooltip">Meio Dir. — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-6" data-zone="Defesa Esq."><span class="zone-tooltip">Defesa Esq. — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-7" data-zone="Defesa Centro"><span class="zone-tooltip">Defesa Centro — 0</span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="hm-8" data-zone="Defesa Dir."><span class="zone-tooltip">Defesa Dir. — 0</span><span class="zone-num"></span></div>
           </div>
         </div>
       </div>
@@ -549,6 +582,10 @@ header::-webkit-scrollbar{display:none}
       <button class="btn-excel" onclick="exportDirectExcel()">📊 Exportar .xlsx</button>
       <button class="btn-save" onclick="saveMatchToHistory()">💾 Guardar Jogo</button>
     </div>
+    <div style="margin-top:8px;">
+      <input id="opp-name-input" type="text" placeholder="Nome do adversário (ex: Benfica)" value="${opponentName}" oninput="opponentName=this.value;localStorage.setItem('sl_opponent',opponentName)" style="width:100%;background:#1c2a20;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px;border-radius:8px;font-size:13px;margin-bottom:8px;">
+    </div>
+    <div id="match-history" style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
 
   <!-- VIEW 3: EQUIPA & CONFIG -->
@@ -654,6 +691,9 @@ let selectedPlayer = null;
 let pendingAction = null;
 let pendingScore = 0;
 let pendingOppAction = null;
+let opponentName = localStorage.getItem('sl_opponent') || '';
+let subs = JSON.parse(localStorage.getItem('sl_subs') || '[]');
+let pendingSubOut = null;
 let half = parseInt(localStorage.getItem('sl_half') || '1');
 let statHalfFilter = 'all';
 
@@ -678,6 +718,7 @@ window.onload = () => {
   updateStats();
   renderOppActions();
   renderTimeline();
+  renderMatchHistory();
   document.querySelectorAll('.hm-zone').forEach(el => {
     el.addEventListener('click', () => {
       const zone = el.dataset.zone;
@@ -746,21 +787,86 @@ function setHalf(n) {
 function renderPlayerGrid() {
   const titulares = players.slice(0, 11);
   const suplentes = players.slice(11);
-  const outNums = new Set(JSON.parse(localStorage.getItem('sl_subs')||'[]').map(s=>s.out));
+  const outNums = new Set(subs.map(s=>s.out));
+  const inNums = new Set(subs.map(s=>s.in));
+  const pendingOut = pendingSubOut ? [pendingSubOut] : [];
   const htmlT = titulares.map(p =>
     `<button class="player-btn${p.num===1?' gr':''}${selectedPlayer&&selectedPlayer.num===p.num?' selected':''}" onclick="selectPlayer(${p.num})">
       <span class="player-num">#${p.num}</span><span class="player-name">${p.name}</span>
       ${outNums.has(p.num)?'<span class="player-badge out">Saiu</span>':''}
+      ${inNums.has(p.num)?'<span class="player-badge" style="background:rgba(61,220,132,.2);color:#3ddc84;">Entrou</span>':''}
     </button>`
   ).join('');
   const htmlS = suplentes.map(p =>
     `<button class="player-btn${selectedPlayer&&selectedPlayer.num===p.num?' selected':''}" onclick="${outNums.has(p.num)?'':'selectPlayer('+p.num+')'}" style="${outNums.has(p.num)?'opacity:.5':''}">
       <span class="player-num">#${p.num}</span><span class="player-name">${p.name}</span>
       ${outNums.has(p.num)?'<span class="player-badge out">Saiu</span>':''}
+      ${inNums.has(p.num)?'<span class="player-badge" style="background:rgba(61,220,132,.2);color:#3ddc84;">Entrou</span>':''}
     </button>`
   ).join('');
   document.getElementById('players-grid-titulares').innerHTML = htmlT;
   document.getElementById('players-grid-suplentes').innerHTML = htmlS;
+}
+
+function renderSubRow() {
+  const outNums = new Set(subs.map(s=>s.out));
+  const inNums = new Set(subs.map(s=>s.in));
+  const titulares = players.slice(0, 11);
+  const suplentes = players.slice(11);
+  const row = document.getElementById('sub-row');
+  if (!row) return;
+  let html = '';
+  // Mark OUT buttons for starters who haven't been subbed out
+  titulares.filter(p => !outNums.has(p.num)).forEach(p => {
+    const isPending = pendingSubOut === p.num;
+    html += `<button class="sub-btn out" onclick="startSubOut(${p.num})" style="${isPending?'background:rgba(255,74,74,.3);border-color:#ff6b6b':''}">${isPending?'✓':'⬇'} ${p.name}</button>`;
+  });
+  // Mark IN buttons (only active if a pendingSubOut is selected)
+  if (pendingSubOut) {
+    html += ' <span style="font-size:10px;color:rgba(255,255,255,.4);align-self:center;">→</span> ';
+    suplentes.filter(p => !inNums.has(p.num)).forEach(p => {
+      html += `<button class="sub-btn in" onclick="confirmSubIn(${p.num})">⬆ ${p.name}</button>`;
+    });
+    html += ` <button class="sub-btn out" onclick="cancelSub()" style="opacity:.5;margin-left:4px;">✕</button>`;
+  }
+  row.innerHTML = html;
+
+  // Sub log
+  const logEl = document.getElementById('sub-log-list');
+  if (logEl) {
+    logEl.innerHTML = subs.slice(0,10).map(s =>
+      `<div class="sub-log">
+        <span class="out-player">⬇ ${s.outName||'#'+s.out}</span>
+        <span class="arrow">→</span>
+        <span class="in-player">⬆ ${s.inName||'#'+s.in}</span>
+        <span class="sub-time">${s.min}'</span>
+      </div>`
+    ).join('') || '';
+  }
+}
+
+function startSubOut(playerNum) {
+  if (pendingSubOut === playerNum) { pendingSubOut = null; renderSubRow(); return; }
+  pendingSubOut = playerNum;
+  renderSubRow();
+  showToast('⬇ Seleciona um suplente para entrar');
+}
+
+function confirmSubIn(inNum) {
+  if (!pendingSubOut) return;
+  const outPlayer = players.find(p => p.num === pendingSubOut);
+  const inPlayer = players.find(p => p.num === inNum);
+  const min = Math.floor(seconds / 60);
+  subs.push({out:pendingSubOut,outName:outPlayer?outPlayer.name:'',in:inNum,inName:inPlayer?inPlayer.name:'',min,half});
+  localStorage.setItem('sl_subs', JSON.stringify(subs));
+  pendingSubOut = null;
+  renderPlayerGrid(); renderSubRow();
+  showToast('🔄 Substituição feita!');
+}
+
+function cancelSub() {
+  pendingSubOut = null;
+  renderSubRow();
 }
 function selectPlayer(num) {
   const p = players.find(pl => pl.num === num);
@@ -773,6 +879,7 @@ function selectPlayer(num) {
     if (parseInt(b.querySelector('.player-num').textContent.replace('#','')) === num) b.classList.add('selected');
   });
   showToast('✅ ' + p.name + ' selecionado');
+  renderSubRow();
 }
 
 function renderActionGrid() {
@@ -839,7 +946,9 @@ function updateStats() {
     if (!el) return;
     const c = zCounts[z] || 0;
     const numEl = el.querySelector('.zone-num');
+    const tipEl = el.querySelector('.zone-tooltip');
     if (numEl) numEl.textContent = c > 0 ? c : '';
+    if (tipEl) tipEl.textContent = z + ' — ' + (c || '0');
     el.style.background = c > 0 ? `rgba(255,74,74,${0.25 + (c / maxC) * 0.75})` : 'rgba(255,255,255,.03)';
     el.style.color = c > 0 ? '#fff' : 'rgba(255,255,255,.25)';
     el.style.fontWeight = c > 0 ? '800' : '700';
@@ -985,11 +1094,41 @@ function removePlayer(idx) { players.splice(idx, 1); renderTeamEditor(); }
 function saveTeam() { localStorage.setItem('sl_team', JSON.stringify(players)); renderPlayerGrid(); showToast('💾 Plantel guardado!'); }
 
 function saveMatchToHistory() {
-  const entry = {id:Date.now(),date:new Date().toLocaleDateString('pt-PT'),golos:logs.filter(l=>l.action==='Golo Marcado').length,sofridos:oppLogs.filter(o=>o.action==='Golo Sofrido').length};
+  const entry = {
+    id:Date.now(),
+    date:new Date().toLocaleDateString('pt-PT'),
+    opponent:opponentName||'—',
+    golos:logs.filter(l=>l.action==='Golo Marcado').length,
+    sofridos:oppLogs.filter(o=>o.action==='Golo Sofrido').length
+  };
   const history = JSON.parse(localStorage.getItem('sl_history') || '[]');
   history.unshift(entry); if (history.length > 20) history.pop();
   localStorage.setItem('sl_history', JSON.stringify(history));
+  renderMatchHistory();
   showToast('💾 Jogo guardado!');
+}
+
+function renderMatchHistory() {
+  const history = JSON.parse(localStorage.getItem('sl_history') || '[]');
+  const el = document.getElementById('match-history');
+  if (!el) return;
+  el.innerHTML = history.slice(0,10).map(h =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#1c2a20;border-radius:6px;font-size:11px;">
+      <span style="font-weight:700;color:rgba(255,255,255,.5);min-width:70px;">${h.date}</span>
+      <span style="color:#c850f5;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.opponent}</span>
+      <span style="font-weight:800;color:#3ddc84;">${h.golos}</span>
+      <span style="color:rgba(255,255,255,.2);">—</span>
+      <span style="font-weight:800;color:#c850f5;">${h.sofridos}</span>
+      <button onclick="deleteHistoryEntry(${h.id})" style="background:rgba(255,74,74,.1);border:1px solid rgba(255,74,74,.2);color:#ff6b6b;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 6px;opacity:.5;" title="Apagar">✕</button>
+    </div>`
+  ).join('') || '<div class="empty" style="font-size:11px;">Sem jogos guardados</div>';
+}
+
+function deleteHistoryEntry(id) {
+  let history = JSON.parse(localStorage.getItem('sl_history') || '[]');
+  history = history.filter(h => h.id !== id);
+  localStorage.setItem('sl_history', JSON.stringify(history));
+  renderMatchHistory();
 }
 
 function exportJSON() {
@@ -1049,16 +1188,16 @@ function exportDirectExcel() {
 }
 
 function hardReset() {
-  if (!confirm('Apagar TODOS os dados? Equipa, golos, stats, tudo! Isto não pode ser revertido!')) return;
+  if (!confirm('Apagar TODOS os dados? Logs, adversário, estatísticas e timer — a equipa mantém-se. Isto não pode ser revertido!')) return;
   localStorage.removeItem('sl_logs'); localStorage.removeItem('sl_opp_logs');
   localStorage.removeItem('sl_subs'); localStorage.removeItem('sl_time');
   localStorage.removeItem('sl_half'); localStorage.removeItem('sl_history');
   localStorage.removeItem('sl_running'); localStorage.removeItem('sl_start_ts');
-  localStorage.removeItem('sl_seconds_at_start');
-  logs = []; oppLogs = []; seconds = 0; half = 1;
+  localStorage.removeItem('sl_seconds_at_start'); localStorage.removeItem('sl_opponent');
+  logs = []; oppLogs = []; subs = []; seconds = 0; half = 1; opponentName = '';
   resetTimer(); setHalf(1);
-  renderPlayerGrid(); updateStats(); renderOppActions(); renderTimeline();
-  showToast('🗑️ Todos os dados apagados!');
+  renderPlayerGrid(); renderSubRow(); updateStats(); renderOppActions(); renderTimeline(); renderMatchHistory();
+  showToast('🗑️ Dados limpos — equipa mantida!');
 }
 
 function clearStats() {
@@ -1075,20 +1214,6 @@ function clearStats() {
 function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg;
   t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2800);
-}
-
-if (logs.length === 0) {
-  logs = [
-    {id:1,min:5,half:1,player:'Médio',num:8,action:'Passe Falhado',score:-1,zone:'Meio Centro'},
-    {id:2,min:12,half:1,player:'Extremo D.',num:7,action:'Cruzamento Certo',score:1,zone:'Ataque Dir.'},
-    {id:3,min:23,half:1,player:'Ponta Lança',num:9,action:'Remate à Baliza',score:1,zone:'Ataque Centro'},
-    {id:4,min:31,half:1,player:'Trinco',num:6,action:'Desarme Certo',score:1,zone:'Defesa Centro'},
-    {id:5,min:45,half:1,player:'Ponta Lança',num:9,action:'Golo Marcado',score:1,zone:'Ataque Centro'}
-  ];
-  oppLogs = [{id:1,min:38,action:'Golo Sofrido',zone:'Ataque Centro',half:1}];
-  localStorage.setItem('sl_logs', JSON.stringify(logs));
-  localStorage.setItem('sl_opp_logs', JSON.stringify(oppLogs));
-  updateStats();
 }
 </script>
 </body>
