@@ -459,7 +459,7 @@ header::-webkit-scrollbar{display:none}
     <div class="header-actions">
       <button class="icon-btn" onclick="switchTab('stats')" title="Ver Análise">📊</button>
       <button class="icon-btn" onclick="exportDirectExcel()" title="Exportar Excel">📥</button>
-      <button class="icon-btn" onclick="downloadAppFile()" title="Descarregar App" style="font-size:12px;">⬇</button>
+      <button class="icon-btn" onclick="downloadAppFile()" title="Descarregar App (.zip)" style="font-size:12px;">⬇</button>
     </div>
   </header>
 
@@ -652,7 +652,7 @@ header::-webkit-scrollbar{display:none}
     <div class="config-card" style="border-color:rgba(255,74,74,.2);">
       <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
       <button class="btn-danger" style="margin-top:4px;" onclick="hardReset()">🗑️ Reset Total (apaga tudo)</button>
-      <button class="btn-excel" style="margin-top:8px;" onclick="downloadAppFile()">⬇ Descarregar App</button>
+      <button class="btn-excel" style="margin-top:8px;" onclick="downloadAppFile()">⬇ Descarregar App (.zip)</button>
       <button class="btn-danger" style="margin-top:6px;background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.3);color:#3ddc84;" onclick="installApp()">📲 Instalar no Telemóvel</button>
     </div>
   </div>
@@ -1276,8 +1276,62 @@ function showToast(msg) {
 
 function downloadAppFile() {
   showToast('⏳ A preparar download...');
-  // Get the current page HTML directly from document
-  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  // Build complete standalone HTML with embedded manifest and service worker
+  // so it works 100% offline when downloaded as a single file
+  const currentHTML = document.documentElement.outerHTML;
+  
+  // Extract just the app HTML (no manifest.json link needed for standalone)
+  let standaloneHTML = currentHTML
+    .replace(/<link rel="manifest" href="\/manifest\.json">/, '')
+    .replace(/<link rel="manifest" href="manifest\.json">/, '')
+    .replace(/<link rel="icon"[^>]*>/, '')
+    .replace(/<link rel="apple-touch-icon"[^>]*>/, '')
+    .replace("navigator.serviceWorker.register('./sw.js').catch(() => {});", 
+      "if(location.protocol==='file:'){console.log('SW skipped: file:// origin');}else{navigator.serviceWorker.register('./sw.js').catch(()=>{});}");
+
+  const manifest = JSON.stringify({
+    name:"StatsLive", short_name:"StatsLive",
+    description:"App de estatísticas de jogo ao vivo",
+    start_url:"./estatisticas.html", scope:"./", display:"standalone",
+    background_color:"#0c1610", theme_color:"#0c1610", orientation:"any",
+    categories:["sports","utilities"],
+    icons:[{src:"./icon-192.svg",sizes:"192x192",type:"image/svg+xml",purpose:"any"}]
+  }, null, 2);
+  
+  const swContent = `const CACHE_NAME='statslive-v1';const ASSETS=['./estatisticas.html','./manifest.json','./icon-192.svg'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE_NAME).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.status===200){const c=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(e.request,c));}return res;}).catch(()=>{if(e.request.mode==='navigate')return caches.match('./estatisticas.html');})));});`;
+
+  const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="32" fill="#0c1610"/><circle cx="96" cy="96" r="60" fill="#1a2d1e" stroke="#3ddc84" stroke-width="6"/><line x1="96" y1="36" x2="96" y2="156" stroke="#3ddc84" stroke-width="4" opacity="0.6"/><line x1="36" y1="96" x2="156" y2="96" stroke="#3ddc84" stroke-width="4" opacity="0.6"/><circle cx="96" cy="96" r="20" fill="none" stroke="#3ddc84" stroke-width="4"/><text x="96" y="186" font-family="Arial Black,sans-serif" font-size="40" font-weight="900" fill="#3ddc84" text-anchor="middle">SL</text></svg>`;
+
+  // Use JSZip from CDN to create the zip
+  fetch('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
+    .then(r => r.text())
+    .then(jszipCode => {
+      try {
+        eval(jszipCode);
+        const zip = new JSZip();
+        zip.file('StatsLive/estatisticas.html', standaloneHTML);
+        zip.file('StatsLive/manifest.json', manifest);
+        zip.file('StatsLive/sw.js', swContent);
+        zip.file('StatsLive/icon-192.svg', iconSVG);
+        zip.generateAsync({type:'blob'}).then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'StatsLive_PWA.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showToast('✅ StatsLive.zip descarregado! Descompacta e abre.');
+        });
+      } catch(e) {
+        fallbackDownload(standaloneHTML);
+      }
+    })
+    .catch(() => fallbackDownload(standaloneHTML));
+}
+
+function fallbackDownload(html) {
   const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1287,7 +1341,7 @@ function downloadAppFile() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('✅ StatsLive descarregado!');
+  showToast('✅ StatsLive.html descarregado!');
 }
 
 let deferredPrompt = null;
@@ -1300,7 +1354,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
 

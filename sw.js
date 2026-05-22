@@ -1,8 +1,8 @@
 const CACHE_NAME = 'statslive-v1';
 const ASSETS = [
-  '/estatisticas.html',
-  '/manifest.json',
-  '/icon-192.svg'
+  './estatisticas.html',
+  './manifest.json',
+  './icon-192.svg'
 ];
 
 self.addEventListener('install', (e) => {
