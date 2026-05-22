@@ -651,7 +651,8 @@ header::-webkit-scrollbar{display:none}
     <div class="config-card" style="border-color:rgba(255,74,74,.2);">
       <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
       <button class="btn-danger" style="margin-top:4px;" onclick="hardReset()">🗑️ Reset Total (apaga tudo)</button>
-      <button class="btn-danger" style="margin-top:6px;background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.3);color:#3ddc84;" onclick="installApp()">📲 Instalar App</button>
+      <button class="btn-excel" style="margin-top:8px;" onclick="downloadAppFile()">⬇ Descarregar App</button>
+      <button class="btn-danger" style="margin-top:6px;background:rgba(61,220,132,.1);border-color:rgba(61,220,132,.3);color:#3ddc84;" onclick="installApp()">📲 Instalar no Telemóvel</button>
     </div>
   </div>
 </div>
@@ -1274,20 +1275,18 @@ function showToast(msg) {
 
 function downloadAppFile() {
   showToast('⏳ A preparar download...');
-  fetch('estatisticas.html')
-    .then(r => r.text())
-    .then(html => {
-      const blob = new Blob([html], {type:'text/html'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'StatsLive_SaoMancos.html';
-      a.click();
-      showToast('✅ StatsLive descarregado!');
-    })
-    .catch(() => {
-      // fallback: just prompt user to save page
-      showToast('📋 Usa Ctrl+S para guardar esta página');
-    });
+  // Get the current page HTML directly from document
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'StatsLive.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✅ StatsLive descarregado!');
 }
 
 let deferredPrompt = null;
