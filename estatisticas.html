@@ -195,6 +195,15 @@ header::-webkit-scrollbar{display:none}
 .tl-dot.neg{background:#ff4a4a}
 .tl-dot.neu{background:#ffb84a}
 .tl-dot.gol{background:#FFD700}
+.tl-del{
+  width:22px;height:22px;
+  background:rgba(255,74,74,.1);border:1px solid rgba(255,74,74,.25);
+  color:#ff6b6b;border-radius:4px;
+  cursor:pointer;font-size:10px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;opacity:.4;
+}
+.tl-del:hover{opacity:1;background:rgba(255,74,74,.2)}
 
 /* ── Zone Modal ── */
 #zone-modal,#sub-modal{
@@ -237,9 +246,11 @@ header::-webkit-scrollbar{display:none}
 }
 .opp-btn:hover{background:rgba(192,96,224,.2)}
 .opp-list{display:flex;flex-direction:column;gap:4px;max-height:80px;overflow-y:auto}
-.opp-item{display:flex;justify-content:space-between;font-size:11px;padding:5px 8px;background:#1c2a20;border-radius:6px}
+.opp-item{display:flex;justify-content:space-between;font-size:11px;padding:5px 8px;background:#1c2a20;border-radius:6px;align-items:center}
 .opp-name{color:#c850f5}
-.opp-zone{color:rgba(255,255,255,.35)}
+.opp-zone{color:rgba(255,255,255,.35);margin-right:6px}
+.opp-del{width:18px;height:18px;background:rgba(192,96,224,.1);border:1px solid rgba(192,96,224,.2);color:#c850f5;border-radius:3px;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;transition:all .15s;opacity:.4;flex-shrink:0}
+.opp-del:hover{opacity:1;background:rgba(192,96,224,.2)}
 
 /* ── Filter toggle ── */
 .filter-row{display:flex;gap:4px;margin-bottom:4px}
@@ -561,8 +572,7 @@ header::-webkit-scrollbar{display:none}
 
     <div class="config-card" style="border-color:rgba(255,74,74,.2);">
       <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
-      <button class="btn-danger" onclick="hardReset()">🗑️ Limpar Tudo (Reset Total)</button>
-      <button class="btn-danger" style="margin-top:8px;background:rgba(255,184,74,.1);border-color:rgba(255,184,74,.3);color:#ffb84a;" onclick="clearStats()">🧹 Limpar só Estatísticas</button>
+      <button class="btn-danger" style="margin-top:4px;" onclick="hardReset()">🗑️ Reset Total (apaga tudo)</button>
     </div>
   </div>
 </div>
@@ -856,8 +866,23 @@ function updateStats() {
 function renderTimeline() {
   document.getElementById('timeline-list').innerHTML = logs.slice(0,30).map(l => {
     const dot = l.action === 'Golo Marcado' ? 'gol' : l.score > 0 ? 'pos' : l.score < 0 ? 'neg' : 'neu';
-    return `<div class="timeline-item"><span class="tl-dot ${dot}"></span><span class="tl-time">${l.min}'</span><span class="tl-num">#${l.num}</span><span class="tl-name">${l.player}</span><span class="tl-action">${l.action}</span><span class="tl-zone">${l.zone}</span></div>`;
+    return `<div class="timeline-item">
+      <span class="tl-dot ${dot}"></span>
+      <span class="tl-time">${l.min}'</span>
+      <span class="tl-num">#${l.num}</span>
+      <span class="tl-name">${l.player}</span>
+      <span class="tl-action">${l.action}</span>
+      <span class="tl-zone">${l.zone}</span>
+      <button class="tl-del" onclick="deleteLog(${l.id})" title="Apagar">✕</button>
+    </div>`;
   }).join('') || '<div class="empty">Sem ações registadas</div>';
+}
+
+function deleteLog(id) {
+  logs = logs.filter(l => l.id !== id);
+  localStorage.setItem('sl_logs', JSON.stringify(logs));
+  updateStats(); renderTimeline();
+  showToast('🗑️ Ação apagada');
 }
 
 function undoLastAction() {
@@ -887,9 +912,20 @@ function confirmOppZone(zone) {
   showToast('🟥 ' + pendingOppAction + ' — ' + zone);
 }
 function renderOppActions() {
-  document.getElementById('opp-actions-list').innerHTML = oppLogs.slice(0,5).map(o =>
-    `<div class="opp-item"><span class="opp-name">${o.min}' ${o.action}</span><span class="opp-zone">${o.zone}</span></div>`
+  document.getElementById('opp-actions-list').innerHTML = oppLogs.slice(0,8).map(o =>
+    `<div class="opp-item">
+      <span class="opp-name">${o.min}' ${o.action}</span>
+      <span class="opp-zone">${o.zone}</span>
+      <button class="opp-del" onclick="deleteOppLog(${o.id})" title="Apagar">✕</button>
+    </div>`
   ).join('') || '<div class="empty">Nenhuma ação</div>';
+}
+
+function deleteOppLog(id) {
+  oppLogs = oppLogs.filter(o => o.id !== id);
+  localStorage.setItem('sl_opp_logs', JSON.stringify(oppLogs));
+  renderOppActions(); updateStats();
+  showToast('🗑️ Ação apagada');
 }
 
 function renderTeamEditor() {
