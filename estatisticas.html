@@ -1297,6 +1297,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
   btns.forEach(b => b.style.display = 'inline-block');
 });
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 function installApp() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
