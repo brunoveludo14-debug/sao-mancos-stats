@@ -727,7 +727,8 @@ window.onload = () => {
     });
   });
 };
-  function switchTab(tab) {
+
+function switchTab(tab) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
@@ -1042,6 +1043,8 @@ function undoLastAction() {
   updateStats(); renderTimeline();
   showToast('↩ Desfeito: ' + undone.action);
 }
+
+function addOppQuick(action) {
   pendingOppAction = action;
   document.getElementById('opp-zone-title').textContent = action + ' — Zona do campo';
   document.getElementById('opp-zone-modal').style.display = 'flex';
