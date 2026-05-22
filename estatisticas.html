@@ -1276,28 +1276,20 @@ function showToast(msg) {
 
 function downloadAppFile() {
   showToast('⏳ A preparar download...');
-  
-  // --- Option 1: HTML file for offline use (fallback) ---
   const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-  
-  // --- Option 2: Internet Shortcut (.url) - works as real shortcut on Windows ---
-  const urlContent = '[InternetShortcut]\nURL=file:///' + 
-    encodeURIComponent('C:\\Users\\bruno\\Desktop\\StatsLive\\estatisticas.html').replace(/%5C/g,'/') +
-    '\nIconFile=C:\\Users\\bruno\\Desktop\\StatsLive\\icon-192.svg\n';
-  
-  // Create a combined zip: HTML + manifest + sw.js + icon + .url shortcut + install.bat
+  const installScript = `@echo off\necho.\necho ========================================\necho   INSTALAR STATSLIVE NA BARRA DE TAREFAS\necho ========================================\necho.\n\n:: Create StatsLive folder on Desktop\nset "FOLDER=%USERPROFILE%\\Desktop\\StatsLive"\nif not exist "%FOLDER%" mkdir "%FOLDER%"\n\necho [1/4] Copiando ficheiros...\ncopy /Y "%%~dp0estatisticas.html" "%FOLDER%\\" >nul\ncopy /Y "%%~dp0manifest.json" "%FOLDER%\\" >nul\ncopy /Y "%%~dp0sw.js" "%FOLDER%\\" >nul\ncopy /Y "%%~dp0icon-192.svg" "%FOLDER%\\" >nul\n\necho [2/4] Criando atalho...\n\n:: Create VBS script to make proper shortcut with custom icon\ncscript //nologo "%TEMP%\\mklnk.vbs" "%FOLDER%\\estatisticas.html" "%USERPROFILE%\\Desktop\\StatsLive.lnk" "%FOLDER%\\icon-192.svg"\n\necho [3/4] Fixando na barra de tarefas...\npowershell -ExecutionPolicy Bypass -Command "\n$WshShell = New-Object -ComObject WScript.Shell\n$Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\\Desktop\\StatsLive.lnk')\n$Shortcut.TargetPath = '%FOLDER%\\estatisticas.html'\n$Shortcut.WorkingDirectory = '%FOLDER%'\n$Shortcut.IconLocation = '%FOLDER%\\icon-192.svg'\n$Shortcut.Save()\n"\n\necho.\necho ========================================\necho   FEITO! StatsLive instalado na barra!\necho ========================================\necho.\npause\n`;
+
+  const vbsScript = `Set WshShell = CreateObject("WScript.Shell")\nSet FSO = CreateObject("Scripting.FileSystemObject")\n\ntargetPath = WScript.Arguments(0)\nshortcutPath = WScript.Arguments(1)\niconPath = WScript.Arguments(2)\n\nSet shortcut = WshShell.CreateShortcut(shortcutPath)\nshortcut.TargetPath = targetPath\nIf FSO.FileExists(iconPath) Then\n    shortcut.IconLocation = iconPath\nEnd If\nshortcut.WorkingDirectory = Left(targetPath, InStrRev(targetPath, "\\") - 1)\nshortcut.Save\n`;
+
   fetch('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
     .then(r => r.text())
     .then(jszipCode => {
       try {
         eval(jszipCode);
         const zip = new JSZip();
-        
-        // The standalone HTML (no external manifest links)
-        let standaloneHTML = html
+        const standaloneHTML = html
           .replace(/<link rel="manifest" href="\/manifest\.json">/, '')
           .replace(/<link rel="manifest" href="manifest\.json">/, '');
-        
         const manifestJSON = JSON.stringify({
           name:"StatsLive", short_name:"StatsLive",
           description:"App de estatísticas de jogo ao vivo",
@@ -1306,21 +1298,17 @@ function downloadAppFile() {
           categories:["sports","utilities"],
           icons:[{src:"./icon-192.svg",sizes:"192x192",type:"image/svg+xml",purpose:"any"}]
         }, null, 2);
-        
         const swContent = `const CACHE_NAME='statslive-v1';const ASSETS=['./estatisticas.html','./manifest.json','./icon-192.svg'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE_NAME).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.status===200){const c=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(e.request,c));}return res;}).catch(()=>{if(e.request.mode==='navigate')return caches.match('./estatisticas.html');})));});`;
-        
         const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="32" fill="#0c1610"/><circle cx="96" cy="96" r="60" fill="#1a2d1e" stroke="#3ddc84" stroke-width="6"/><line x1="96" y1="36" x2="96" y2="156" stroke="#3ddc84" stroke-width="4" opacity="0.6"/><line x1="36" y1="96" x2="156" y2="96" stroke="#3ddc84" stroke-width="4" opacity="0.6"/><circle cx="96" cy="96" r="20" fill="none" stroke="#3ddc84" stroke-width="4"/><text x="96" y="186" font-family="Arial Black,sans-serif" font-size="40" font-weight="900" fill="#3ddc84" text-anchor="middle">SL</text></svg>`;
-        
-        // Instructions file
-        const readmeContent = `INSTALAR STATSLIVE NA BARRA DE TAREFAS\n======================================\n\n1. DESCOMPACTA o ficheiro StatsLive_PWA.zip\n2. VAI à pasta StatsLive que foi criada\n3. CLICA COM BOTÃO DIREITO em "StatsLive.url"\n4. Seleciona "Enviar para" > "Secretária (criar atalho)"\n5. NOVA窗ICA o atalho na Secretária\n6. CLICA COM BOTÃO DIREITO no atalho da Secretária\n7. Seleciona "Fixar na barra de tarefas"\n\nE já está! O StatsLive fica na barra de tarefas do Windows.\n\nSe não aparecer "Fixar na barra de tarefas":\n- Arrasta o atalho para a barra de tarefas\n\nFicheiros incluídos:\n- estatisticas.html  → o app\n- manifest.json      → PWA config\n- sw.js             → service worker (funciona offline)\n- icon-192.svg      → ícone\n- StatsLive.url     → atalho rápido para a barra\n- README.txt        → este ficheiro`;
-
         zip.file('StatsLive/estatisticas.html', standaloneHTML);
         zip.file('StatsLive/manifest.json', manifestJSON);
         zip.file('StatsLive/sw.js', swContent);
         zip.file('StatsLive/icon-192.svg', iconSVG);
-        zip.file('StatsLive/StatsLive.url', '[InternetShortcut]\nURL=file:///' + 'C:/Users/bruno/Desktop/StatsLive/estatisticas.html'.replace(/\\/g,'/') + '\n');
-        zip.file('StatsLive/README.txt', readmeContent);
-        
+        zip.file('StatsLive/Instalar.bat', installScript);
+        zip.file('StatsLive/mklnk.vbs', vbsScript);
+        zip.file('StatsLive/README.txt', 
+          'INSTALAR STATSLIVE\n===================\n\n1. Clica duas vezes em INSTALAR.BAT\n2. Segue as instruções no ecrã\n3. O StatsLive fica na barra de tarefas!\n\nSe preferir criar o atalho manualmente:\n1. Clica com botão direito no desktop → Novo → Atalho\n2. Browsa até Desktop\\StatsLive\\estatisticas.html\n3. Clica em Seguinte → dá o nome "StatsLive"\n4. Clica com botão direito no atalho criado → Fixar na barra de tarefas'
+        );
         zip.generateAsync({type:'blob'}).then(blob => {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -1330,11 +1318,14 @@ function downloadAppFile() {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          showToast('✅ Descarregado! Consulta o README.txt dentro do ZIP.');
+          showToast('✅ Descarregado! Descompacta → abre INSTALAR.BAT');
         });
       } catch(e) {
         fallbackDownload(html);
       }
+    })
+    .catch(() => fallbackDownload(html));
+}
     })
     .catch(() => fallbackDownload(html));
 }
