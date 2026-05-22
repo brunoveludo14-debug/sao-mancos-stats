@@ -55,30 +55,63 @@ header::-webkit-scrollbar{display:none}
 
 /* ── Timer Panel ── */
 .timer-panel{
-  background:#16241b;border:1px solid rgba(61,220,132,.15);
-  border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;
+  background:#1a1a1a;
+  border:1px solid #2a2a2a;
+  border-radius:16px;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
 }
-.timer-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.timer-display{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:#fff;letter-spacing:.05em}
-.timer-controls{display:flex;gap:5px}
-.timer-btn{
-  width:34px;height:34px;border:1px solid rgba(255,255,255,.12);
-  border-radius:8px;background:#1c2a20;color:rgba(255,255,255,.5);
-  font-size:12px;display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:all .15s;
+.timer-left{display:flex;flex-direction:column;gap:2px}
+.timer-time-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)}
+.timer-display{
+  font-family:'Inter','Segoe UI',system-ui,sans-serif;
+  font-size:32px;font-weight:800;
+  color:#3ddc84;
+  letter-spacing:.02em;
+  line-height:1;
 }
-.timer-btn.play{background:#3ddc84;color:#0c1610;border-color:#3ddc84;font-size:14px}
-.timer-btn.running{color:#3ddc84;border-color:#3ddc84;animation:pulse 1s infinite}
-.timer-btn:hover{background:#243630;color:#fff}
-.timer-btn.play:hover{background:#4de896}
-.half-toggle{display:flex;border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden}
+.timer-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.timer-btn-ghost{
+  padding:8px 16px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:8px;
+  color:#fff;
+  font-size:12px;font-weight:600;
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.timer-btn-ghost:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+.timer-btn-ghost:active{transform:scale(.95)}
+.timer-btn-ghost.play-btn{
+  background:#3ddc84;color:#0c1610;border-color:#3ddc84;font-size:14px;padding:8px 14px;
+}
+.timer-btn-ghost.play-btn:hover{background:#4de896;border-color:#4de896}
+.timer-btn-ghost.play-btn.running{background:transparent;color:#3ddc84;border-color:#3ddc84}
+.timer-btn-ghost.reset:hover{background:rgba(255,74,74,.1);border-color:rgba(255,74,74,.4);color:#ff6b6b}
+.half-toggle{
+  display:flex;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;
+  overflow:hidden;
+  flex-shrink:0;
+}
 .half-btn{
-  flex:1;padding:7px;background:#1c2a20;color:rgba(255,255,255,.4);
-  font-size:12px;font-weight:600;border:none;cursor:pointer;
+  flex:1;padding:8px 14px;
+  background:transparent;
+  color:rgba(255,255,255,.5);
+  font-size:12px;font-weight:700;
+  border:none;cursor:pointer;
   transition:all .15s;text-align:center;
+  letter-spacing:.02em;
 }
 .half-btn.active{background:#3ddc84;color:#0c1610}
-.half-btn:hover:not(.active){background:#243630}
+.half-btn:hover:not(.active){background:rgba(255,255,255,.06);color:#fff}
 
 /* ── Scoreboard ── */
 .scoreboard{
@@ -358,18 +391,19 @@ header::-webkit-scrollbar{display:none}
   <div id="view-jogo" class="view active main">
 
     <div class="timer-panel">
-      <div class="timer-row">
-        <div class="timer-display" id="timer-display">00:00</div>
-        <div class="timer-controls">
-          <button class="timer-btn" onclick="resetTimer()">⟲</button>
-          <button class="timer-btn play" id="btn-play" onclick="toggleTimer()">▶</button>
-        </div>
-      </div>
+    <div class="timer-left">
+      <div class="timer-time-label">Tempo de Jogo</div>
+      <div class="timer-display" id="timer-display">00:00</div>
+    </div>
+    <div class="timer-right">
+      <button class="timer-btn-ghost reset" onclick="resetTimer()">Reset</button>
+      <button class="timer-btn-ghost play-btn" id="btn-play" onclick="toggleTimer()">▶ Iniciar Jogo</button>
       <div class="half-toggle">
         <button class="half-btn active" id="btn-half-1" onclick="setHalf(1)">1ª Parte</button>
         <button class="half-btn" id="btn-half-2" onclick="setHalf(2)">2ª Parte</button>
       </div>
     </div>
+  </div>
 
     <div class="scoreboard">
       <div class="score-team">
@@ -614,7 +648,7 @@ let statHalfFilter = 'all';
 if (isRunning && startTimestamp > 0) {
   const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
   seconds = parseInt(localStorage.getItem('sl_seconds_at_start') || '0') + elapsed;
-  document.getElementById('btn-play').textContent = '⏸';
+  document.getElementById('btn-play').textContent = '⏸ Pausar';
   document.getElementById('btn-play').classList.add('running');
   timerInterval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
@@ -665,13 +699,13 @@ function toggleTimer() {
   if (isRunning) {
     clearInterval(timerInterval); isRunning = false;
     localStorage.setItem('sl_running', '0');
-    btn.textContent = '▶'; btn.classList.remove('running');
+    btn.textContent = '▶ Iniciar Jogo'; btn.classList.remove('running');
   } else {
     isRunning = true;
     startTimestamp = Date.now();
     localStorage.setItem('sl_start_ts', startTimestamp);
     localStorage.setItem('sl_seconds_at_start', seconds);
-    btn.textContent = '⏸'; btn.classList.add('running');
+    btn.textContent = '⏸ Pausar'; btn.classList.add('running');
     timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
       seconds = parseInt(localStorage.getItem('sl_seconds_at_start') || '0') + elapsed;
@@ -685,7 +719,7 @@ function resetTimer() {
   localStorage.setItem('sl_start_ts', '0');
   localStorage.setItem('sl_seconds_at_start', '0');
   updateTimer();
-  document.getElementById('btn-play').textContent = '▶';
+  document.getElementById('btn-play').textContent = '▶ Iniciar Jogo';
   document.getElementById('btn-play').classList.remove('running');
 }
 function setHalf(n) {
