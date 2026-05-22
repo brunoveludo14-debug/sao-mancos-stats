@@ -58,30 +58,31 @@ header::-webkit-scrollbar{display:none}
   background:#1a1a1a;
   border:1px solid #2a2a2a;
   border-radius:16px;
-  padding:14px 16px;
+  padding:12px 14px;
   display:flex;
   flex-direction:row;
   align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
+  gap:10px;
+  flex-wrap:nowrap;
+  overflow:hidden;
 }
-.timer-left{display:flex;flex-direction:column;gap:2px}
-.timer-time-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4)}
+.timer-left{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.timer-time-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35)}
 .timer-display{
   font-family:'Inter','Segoe UI',system-ui,sans-serif;
-  font-size:32px;font-weight:800;
+  font-size:30px;font-weight:800;
   color:#3ddc84;
-  letter-spacing:.02em;
+  letter-spacing:.01em;
   line-height:1;
 }
-.timer-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.timer-right{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
 .timer-btn-ghost{
-  padding:8px 16px;
+  padding:7px 12px;
   background:transparent;
-  border:1px solid rgba(255,255,255,.25);
+  border:1px solid rgba(255,255,255,.2);
   border-radius:8px;
   color:#fff;
-  font-size:12px;font-weight:600;
+  font-size:12px;font-weight:700;
   cursor:pointer;
   transition:all .15s;
   white-space:nowrap;
@@ -185,11 +186,11 @@ header::-webkit-scrollbar{display:none}
   display:flex;align-items:center;gap:8px;
   padding:8px 10px;background:#1c2a20;border-radius:8px;font-size:12px;
 }
-.tl-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,.4);min-width:30px}
-.tl-num{font-weight:700;color:rgba(255,255,255,.6);min-width:22px;text-align:center}
-.tl-name{flex:1;font-weight:500;color:rgba(255,255,255,.8)}
-.tl-action{color:rgba(255,255,255,.5);font-size:11px;flex:1}
-.tl-zone{font-size:10px;color:rgba(255,255,255,.3)}
+.tl-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,.4);min-width:24px}
+.tl-num{font-weight:700;color:rgba(255,255,255,.6);min-width:20px;text-align:center;font-size:11px}
+.tl-name{flex:1;font-weight:500;color:rgba(255,255,255,.8);font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-action{color:rgba(255,255,255,.45);font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tl-zone{font-size:10px;color:rgba(255,255,255,.25);min-width:60px;text-align:right}
 .tl-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .tl-dot.pos{background:#3ddc84}
 .tl-dot.neg{background:#ff4a4a}
@@ -237,6 +238,7 @@ header::-webkit-scrollbar{display:none}
 .undo-btn:hover{background:rgba(61,220,132,.2)}
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes confirmBlink{0%,100%{background:rgba(255,74,74,.3)}50%{background:rgba(255,74,74,.6)}}
 
 /* ── Opponent ── */
 .opp-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
@@ -251,6 +253,7 @@ header::-webkit-scrollbar{display:none}
 .opp-zone{color:rgba(255,255,255,.35);margin-right:6px}
 .opp-del{width:18px;height:18px;background:rgba(192,96,224,.1);border:1px solid rgba(192,96,224,.2);color:#c850f5;border-radius:3px;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;transition:all .15s;opacity:.4;flex-shrink:0}
 .opp-del:hover{opacity:1;background:rgba(192,96,224,.2)}
+.opp-del.confirm{opacity:1;background:rgba(255,74,74,.3);border-color:rgba(255,74,74,.6);animation:confirmBlink .3s ease}
 
 /* ── Filter toggle ── */
 .filter-row{display:flex;gap:4px;margin-bottom:4px}
@@ -687,8 +690,9 @@ window.onload = () => {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + tab).classList.add('active');
+  const labels = {jogo:'1.',stats:'2.',equipa:'3.'};
   document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.textContent.includes(tab === 'jogo' ? '1.' : tab === 'stats' ? '2.' : '3.')) b.classList.add('active');
+    if (b.textContent.includes(labels[tab])) b.classList.add('active');
   });
   if (tab === 'stats') updateStats();
 }
@@ -873,16 +877,53 @@ function renderTimeline() {
       <span class="tl-name">${l.player}</span>
       <span class="tl-action">${l.action}</span>
       <span class="tl-zone">${l.zone}</span>
-      <button class="tl-del" onclick="deleteLog(${l.id})" title="Apagar">✕</button>
+      <button class="tl-del" data-id="${l.id}" onclick="deleteLog(${l.id})" title="Apagar">✕</button>
     </div>`;
   }).join('') || '<div class="empty">Sem ações registadas</div>';
 }
 
+let deleteConfirmId = null;
+let deleteConfirmTimer = null;
+
+let deleteConfirmId = null;
+let deleteConfirmTimer = null;
+
 function deleteLog(id) {
-  logs = logs.filter(l => l.id !== id);
-  localStorage.setItem('sl_logs', JSON.stringify(logs));
-  updateStats(); renderTimeline();
-  showToast('🗑️ Ação apagada');
+  const el = document.querySelector(`.tl-del[data-id="${id}"]`);
+  if (deleteConfirmId === id) {
+    clearTimeout(deleteConfirmTimer);
+    logs = logs.filter(l => l.id !== id);
+    localStorage.setItem('sl_logs', JSON.stringify(logs));
+    deleteConfirmId = null;
+    updateStats(); renderTimeline();
+    showToast('🗑️ Ação apagada');
+  } else {
+    deleteConfirmId = id;
+    if (el) { el.classList.add('confirm'); el.textContent = '✓'; }
+    deleteConfirmTimer = setTimeout(() => {
+      deleteConfirmId = null;
+      if (el) { el.classList.remove('confirm'); el.textContent = '✕'; }
+    }, 2000);
+  }
+}
+
+function deleteOppLog(id) {
+  const el = document.querySelector(`.opp-del[data-id="${id}"]`);
+  if (deleteConfirmId === id) {
+    clearTimeout(deleteConfirmTimer);
+    oppLogs = oppLogs.filter(o => o.id !== id);
+    localStorage.setItem('sl_opp_logs', JSON.stringify(oppLogs));
+    deleteConfirmId = null;
+    renderOppActions(); updateStats();
+    showToast('🗑️ Ação apagada');
+  } else {
+    deleteConfirmId = id;
+    if (el) { el.classList.add('confirm'); el.textContent = '✓'; }
+    deleteConfirmTimer = setTimeout(() => {
+      deleteConfirmId = null;
+      if (el) { el.classList.remove('confirm'); el.textContent = '✕'; }
+    }, 2000);
+  }
 }
 
 function undoLastAction() {
@@ -892,8 +933,6 @@ function undoLastAction() {
   updateStats(); renderTimeline();
   showToast('↩ Desfeito: ' + undone.action);
 }
-
-function addOppQuick(action) {
   pendingOppAction = action;
   document.getElementById('opp-zone-title').textContent = action + ' — Zona do campo';
   document.getElementById('opp-zone-modal').style.display = 'flex';
@@ -916,7 +955,7 @@ function renderOppActions() {
     `<div class="opp-item">
       <span class="opp-name">${o.min}' ${o.action}</span>
       <span class="opp-zone">${o.zone}</span>
-      <button class="opp-del" onclick="deleteOppLog(${o.id})" title="Apagar">✕</button>
+      <button class="opp-del" data-id="${o.id}" onclick="deleteOppLog(${o.id})" title="Apagar">✕</button>
     </div>`
   ).join('') || '<div class="empty">Nenhuma ação</div>';
 }
