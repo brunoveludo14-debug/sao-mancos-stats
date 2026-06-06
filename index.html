@@ -1,0 +1,2051 @@
+<html lang="pt"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0c1610">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="StatsLive">
+<meta name="description" content="App de estatísticas de jogo ao vivo — São Manços FC">
+<title>StatsLive v2</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+body {
+  background: #050907;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  position: relative;
+}
+
+/* Background Glowing Blobs */
+body::before, body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: -1;
+  opacity: 0.4;
+  pointer-events: none;
+}
+body::before {
+  width: 300px;
+  height: 300px;
+  background: #00ff88;
+  top: -100px;
+  left: -100px;
+}
+body::after {
+  width: 400px;
+  height: 400px;
+  background: #7000ff;
+  bottom: -150px;
+  right: -100px;
+  opacity: 0.2;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+#app { display:flex; flex-direction:column; height:100dvh; overflow:hidden; z-index: 1; }
+
+/* ── Header ── */
+header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 16px; height: 60px;
+  background: rgba(10, 15, 12, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0; overflow-x: auto;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+}
+header::-webkit-scrollbar { display: none; }
+.header-title {
+  display:flex; align-items:center; gap:8px;
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px;
+  background: linear-gradient(135deg, #00ff88 0%, #00b3ff 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  white-space: nowrap; flex-shrink: 0; letter-spacing: -0.02em;
+}
+.header-title svg { stroke: url(#gradient-svg); filter: drop-shadow(0 0 6px rgba(0,255,136,0.5)); }
+.header-tabs { display:flex; gap:6px; flex-shrink:0; margin-left: 8px; }
+.tab-btn {
+  padding: 8px 18px; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+  background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9);
+  font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tab-btn.active {
+  background: rgba(0,255,136,0.1); border-color: rgba(0,255,136,0.3);
+  color: #00ff88; box-shadow: 0 0 20px rgba(0,255,136,0.15), inset 0 0 10px rgba(0,255,136,0.05);
+}
+.tab-btn:hover:not(.active) { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color:#fff; }
+.header-actions { display:flex; gap:8px; margin-left:auto; flex-shrink:0; }
+.icon-btn {
+  width: 38px; height: 38px; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;
+  background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.8);
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.3s ease; flex-shrink: 0;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.icon-btn:active { transform: scale(0.92); }
+
+/* ── Main ── */
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.view { display: none; flex-direction: column; gap: 16px; min-height: 100%; animation: fadeIn 0.4s ease; }
+.view.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Glassmorphism Cards ── */
+.card, .timer-panel, .sub-card, .stat-card, .config-card, .pitch-heatmap-wrap {
+  background: rgba(20, 25, 22, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.card { padding: 16px; }
+.card-title, .section-title {
+  font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgba(255,255,255,0.5); margin-bottom: 12px;
+}
+
+/* ── Timer Panel ── */
+.timer-panel {
+  padding: 20px 20px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; position: relative; overflow: visible;
+}
+.timer-panel::before {
+  content:''; position:absolute; top:0; left:0; width:100%; height:100%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,255,136,0.08) 0%, transparent 70%);
+  pointer-events: none; z-index: 0; border-radius: inherit;
+}
+.timer-top { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; }
+.timer-left { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.timer-time-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(0,255,136,0.6); }
+.timer-display {
+  font-family: 'Outfit', sans-serif; font-size: 56px; font-weight: 800; color: #00ff88;
+  letter-spacing: 0.02em; line-height: 1.2; padding: 6px 0; overflow: visible;
+  text-shadow: 0 0 20px rgba(0,255,136,0.4), 0 0 40px rgba(0,255,136,0.2);
+  font-variant-numeric: tabular-nums;
+}
+.timer-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.timer-btn-ghost {
+  padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.timer-btn-ghost:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+.timer-btn-ghost:active { transform: scale(0.95); }
+.timer-btn-ghost.play-btn {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%); color: #050907; border: none; padding: 10px 20px; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0,255,136,0.3);
+}
+.timer-btn-ghost.play-btn:hover { box-shadow: 0 6px 24px rgba(0,255,136,0.5); filter: brightness(1.1); }
+.timer-btn-ghost.play-btn.running { background: rgba(0,255,136,0.1); color: #00ff88; border: 1px solid rgba(0,255,136,0.4); box-shadow: none; }
+.timer-btn-ghost.reset:hover { background: rgba(255,74,74,0.15); border-color: rgba(255,74,74,0.4); color: #ff6b6b; }
+.half-toggle { display: flex; background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; flex-shrink: 0; width: 100%; border: 1px solid rgba(255,255,255,0.05); }
+.half-btn {
+  flex: 1; padding: 12px; background: transparent; color: rgba(255,255,255,0.4);
+  font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.3s; text-align: center;
+}
+.half-btn.active { background: rgba(255,255,255,0.1); color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+
+/* ── Scoreboard ── */
+.scoreboard {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  padding: 16px 24px; background: rgba(0,0,0,0.3); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: inset 0 2px 20px rgba(0,0,0,0.5);
+}
+.score-team-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 80px; }
+.score-team-name { font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 800; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.08em; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-team-name.home { color: rgba(0,255,136,0.8); text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+.score-team-name.away { color: rgba(180,100,255,0.8); text-shadow: 0 0 10px rgba(180,100,255,0.3); }
+.score-val { font-family: 'Outfit', sans-serif; font-size: 48px; font-weight: 800; line-height: 1; }
+.score-val.marcados { color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.4); }
+.score-val.sofridos { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.4); }
+.score-label { font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 600; letter-spacing: 0.1em; }
+.score-div { font-size: 28px; color: rgba(255,255,255,0.1); font-weight: 300; }
+
+/* ── Player Grid ── */
+.players-section { display: flex; flex-direction: column; gap: 8px; }
+.players-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.player-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 12px 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; cursor: pointer; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); min-height: 70px;
+}
+.player-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.15); }
+.player-btn.selected {
+  background: rgba(0,255,136,0.15); border-color: rgba(0,255,136,0.5);
+  box-shadow: 0 0 20px rgba(0,255,136,0.2), inset 0 0 10px rgba(0,255,136,0.1); transform: translateY(-4px);
+}
+.player-btn.gr { background: rgba(0,183,255,0.05); border-color: rgba(0,183,255,0.15); }
+.player-btn.gr.selected { background: rgba(0,183,255,0.15); border-color: rgba(0,183,255,0.5); box-shadow: 0 0 20px rgba(0,183,255,0.2); }
+.player-num { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.9); line-height: 1; transition: color 0.2s; }
+.player-btn.selected .player-num { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+.player-btn.gr .player-num { color: #00b7ff; }
+.player-btn.gr.selected .player-num { text-shadow: 0 0 10px rgba(0,183,255,0.5); }
+.player-name { font-size: 10px; color: rgba(255,255,255,0.5); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; font-weight: 500; }
+.player-btn.selected .player-name { color: #fff; }
+.player-badge { font-size: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(0,255,136,0.2); color: #00ff88; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.player-badge.out { background: rgba(255,107,107,0.2); color: #ff6b6b; }
+
+/* ── Selected Player Banner ── */
+.selected-banner {
+  display: none; align-items: center; gap: 12px; padding: 12px 16px;
+  background: linear-gradient(90deg, rgba(0,255,136,0.15) 0%, rgba(0,255,136,0.05) 100%);
+  border: 1px solid rgba(0,255,136,0.3); border-radius: 12px; backdrop-filter: blur(10px);
+  animation: bannerIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.selected-banner.show { display: flex; }
+.selected-banner .sb-num { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 800; color: #00ff88; text-shadow: 0 0 12px rgba(0,255,136,0.4); }
+.selected-banner .sb-name { font-size: 14px; font-weight: 600; color: #fff; flex: 1; }
+.selected-banner .sb-clear {
+  padding: 6px 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.selected-banner .sb-clear:hover { background: rgba(255,107,107,0.2); border-color: rgba(255,107,107,0.5); color: #ff6b6b; }
+@keyframes bannerIn{from{opacity:0;transform:translateY(-10px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* ── Suplentes Toggle ── */
+.subs-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px; cursor: pointer; transition: all 0.2s;
+  color: rgba(255,255,255,0.4); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.subs-toggle:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); }
+.subs-toggle .arrow { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); font-size: 10px; }
+.subs-toggle.open .arrow { transform: rotate(180deg); }
+.subs-grid-wrap { overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s; max-height: 0; opacity: 0; }
+.subs-grid-wrap.open { max-height: 400px; opacity: 1; margin-top: 8px; }
+
+/* ── Actions ── */
+.actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.action-btn {
+  padding: 12px 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; color: #fff; font-size: 12px; font-weight: 600; text-align: center;
+  cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; min-height: 56px;
+  position: relative; overflow: hidden;
+}
+.action-btn::after {
+  content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+}
+.action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1; }
+.action-btn:hover::after { opacity: 1; }
+.action-btn:active { transform: scale(0.95); }
+.action-btn.positive { border-color: rgba(0,255,136,0.3); color: #00ff88; background: rgba(0,255,136,0.03); }
+.action-btn.positive:hover { background: rgba(0,255,136,0.1); border-color: rgba(0,255,136,0.5); box-shadow: 0 4px 15px rgba(0,255,136,0.15); }
+.action-btn.negative { border-color: rgba(255,107,107,0.3); color: #ff6b6b; background: rgba(255,107,107,0.03); }
+.action-btn.negative:hover { background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.5); box-shadow: 0 4px 15px rgba(255,107,107,0.15); }
+.action-btn.neutral { border-color: rgba(255,184,74,0.3); color: #ffb84a; background: rgba(255,184,74,0.03); }
+.action-btn.neutral:hover { background: rgba(255,184,74,0.1); border-color: rgba(255,184,74,0.5); box-shadow: 0 4px 15px rgba(255,184,74,0.15); }
+.action-btn.gold { border-color: rgba(255,215,0,0.4); color: #FFD700; background: rgba(255,215,0,0.05); }
+.action-btn.gold:hover { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.6); box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+.action-btn.card-yellow { border-color: rgba(255,215,0,0.5); color: #FFD700; border-width: 2px; }
+.action-btn.card-red { border-color: rgba(255,50,50,0.6); color: #ff3232; border-width: 2px; }
+
+/* ── Quick Zone Strip ── */
+.quick-zone-strip {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  padding: 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,136,0.15); border-radius: 12px;
+  animation: fadeIn 0.2s ease;
+}
+.qz-btn {
+  padding: 10px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.qz-btn:hover { background: rgba(0,255,136,0.1); border-color: rgba(0,255,136,0.4); color: #00ff88; transform: translateY(-1px); }
+.qz-btn:active { transform: scale(0.95); }
+.qz-btn.highlighted { background: rgba(0,255,136,0.2); border-color: #00ff88; color: #00ff88; box-shadow: 0 0 15px rgba(0,255,136,0.2); }
+
+/* ── Pending Action Banner ── */
+.pending-banner {
+  display: none; align-items: center; gap: 12px; padding: 12px 16px;
+  background: linear-gradient(90deg, rgba(255,184,74,0.15) 0%, rgba(255,184,74,0.05) 100%);
+  border: 1px solid rgba(255,184,74,0.4); border-radius: 12px; backdrop-filter: blur(10px);
+  animation: bannerIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pending-banner.show { display: flex; }
+.pending-banner .pb-text { font-size: 13px; font-weight: 600; color: #ffb84a; flex: 1; }
+.pending-banner .pb-cancel {
+  padding: 6px 12px; background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.4);
+  border-radius: 8px; color: #ff6b6b; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.pending-banner .pb-cancel:hover { background: rgba(255,107,107,0.25); }
+
+/* ── Timeline ── */
+.timeline-list { display: flex; flex-direction: column; gap: 6px; max-height: 350px; overflow-y: auto; padding-right: 4px; }
+.timeline-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.03); border-radius: 10px; font-size: 12px;
+  transition: all 0.2s; animation: slideInLeft 0.3s ease;
+}
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+.timeline-item:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
+.tl-time { font-family: 'Outfit', sans-serif; font-variant-numeric: tabular-nums; font-size: 11px; color: rgba(255,255,255,0.4); min-width: 26px; }
+.tl-num { font-weight: 800; color: rgba(255,255,255,0.7); min-width: 24px; text-align: center; font-size: 13px; }
+.tl-name { font-weight: 600; color: #fff; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
+.tl-action { color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.tl-zone { font-size: 10px; color: rgba(255,255,255,0.3); min-width: 55px; text-align: right; text-transform: uppercase; letter-spacing: 0.05em; }
+.tl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+.tl-dot.pos { background: #00ff88; color: #00ff88; } .tl-dot.neg { background: #ff6b6b; color: #ff6b6b; } .tl-dot.neu { background: #ffb84a; color: #ffb84a; } .tl-dot.gol { background: #FFD700; color: #FFD700; }
+.tl-dot.card-y { background: #FFD700; color: #FFD700; } .tl-dot.card-r { background: #ff3232; color: #ff3232; }
+.tl-del {
+  width: 26px; height: 26px; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2);
+  color: #ff6b6b; border-radius: 6px; cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; opacity: 0.4;
+}
+.tl-del:hover { opacity: 1; background: rgba(255,107,107,0.2); transform: scale(1.05); }
+.tl-del.confirm { opacity: 1; background: rgba(255,107,107,0.4); border-color: rgba(255,107,107,0.8); color: #fff; }
+
+/* ── Zone Modal ── */
+#zone-modal, #opp-zone-modal {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  z-index: 1000; flex-direction: column; justify-content: center; align-items: center; padding: 24px;
+}
+.modal-box {
+  background: rgba(20,25,22,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 24px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-title { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.modal-subtitle { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 20px; }
+.zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.zone-btn {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff;
+  padding: 14px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;
+}
+.zone-btn:hover { background: rgba(0,255,136,0.15); border-color: rgba(0,255,136,0.4); color: #00ff88; transform: translateY(-2px); }
+.cancel-btn {
+  width: 100%; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b;
+  padding: 12px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;
+}
+.cancel-btn:hover { background: rgba(255,107,107,0.2); }
+
+/* ── Undo ── */
+.undo-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.undo-btn {
+  background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88;
+  padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.undo-btn:hover { background: rgba(0,255,136,0.2); box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+
+/* ── Opponent ── */
+.opp-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.opp-btn {
+  flex: 1; padding: 10px 12px; background: rgba(180,100,255,0.1); border: 1px solid rgba(180,100,255,0.3);
+  color: #c850f5; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.opp-btn:hover { background: rgba(180,100,255,0.2); box-shadow: 0 0 15px rgba(180,100,255,0.2); transform: translateY(-2px); }
+.opp-list { display: flex; flex-direction: column; gap: 4px; max-height: 100px; overflow-y: auto; }
+.opp-item { display: flex; justify-content: space-between; font-size: 12px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; align-items: center; border: 1px solid rgba(255,255,255,0.03); }
+.opp-name { color: #c850f5; font-weight: 600; }
+.opp-zone { color: rgba(255,255,255,0.4); margin-right: 8px; font-size: 11px; }
+.opp-del { width: 22px; height: 22px; background: rgba(180,100,255,0.1); border: 1px solid rgba(180,100,255,0.25); color: #c850f5; border-radius: 6px; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; opacity: 0.5; transition: all 0.2s; }
+.opp-del:hover { opacity: 1; background: rgba(180,100,255,0.25); }
+
+/* ── Substitutions ── */
+.sub-card { padding: 16px; }
+.sub-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sub-btn {
+  padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+}
+.sub-btn.out { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b; }
+.sub-btn.out:hover { background: rgba(255,107,107,0.2); transform: translateY(-1px); }
+.sub-btn.in { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+.sub-btn.in:hover { background: rgba(0,255,136,0.2); transform: translateY(-1px); }
+.sub-log { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.sub-log .out-player { color: #ff6b6b; font-weight: 600; }
+.sub-log .arrow { color: rgba(255,255,255,0.3); }
+.sub-log .in-player { color: #00ff88; font-weight: 600; }
+.sub-log .sub-time { color: rgba(255,255,255,0.4); margin-left: auto; font-family: 'Outfit', sans-serif; }
+
+/* ── Filter toggle ── */
+.filter-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.filter-btn {
+  padding: 6px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.filter-btn.active { background: rgba(0,255,136,0.15); color: #00ff88; border-color: rgba(0,255,136,0.4); box-shadow: 0 0 15px rgba(0,255,136,0.15); }
+.filter-btn:hover:not(.active) { background: rgba(255,255,255,0.1); color: #fff; }
+
+/* ── Stats / Análise ── */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-card { padding: 16px; display: flex; flex-direction: column; }
+.stat-big { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #00ff88; line-height: 1; margin-bottom: 6px; text-shadow: 0 0 15px rgba(0,255,136,0.3); }
+.stat-bar-bg { height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden; margin: 8px 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+.stat-bar-fill { height: 100%; background: linear-gradient(90deg, #00b3ff 0%, #00ff88 100%); border-radius: 3px; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 10px rgba(0,255,136,0.5); }
+.stat-sub { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 500; }
+.stat-row { display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.6); }
+.player-stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 4px; transition: all 0.2s; }
+.player-stat-row:hover { background: rgba(255,255,255,0.05); }
+.player-rank { font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 800; color: rgba(255,255,255,0.3); min-width: 16px; }
+.player-stat-name { flex: 1; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+.player-stat-count { font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 800; color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.3); }
+
+/* ── Heatmap filter ── */
+.hm-filter-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.hm-filter-btn {
+  padding: 6px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.hm-filter-btn.active { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.4); color: #ff6b6b; box-shadow: 0 0 15px rgba(255,107,107,0.2); }
+.hm-filter-btn[data-hm="positive"].active { background: rgba(0,255,136,0.15); border-color: rgba(0,255,136,0.4); color: #00ff88; box-shadow: 0 0 15px rgba(0,255,136,0.2); }
+.hm-filter-btn[data-hm="all"].active { background: rgba(0,183,255,0.15); border-color: rgba(0,183,255,0.4); color: #00b7ff; box-shadow: 0 0 15px rgba(0,183,255,0.2); }
+
+/* ── Pitch Heatmap ── */
+.pitch-heatmap-wrap { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); padding: 4px; box-shadow: inset 0 4px 20px rgba(0,0,0,0.5); }
+.pitch-svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); }
+.pitch-svg line, .pitch-svg rect, .pitch-svg circle { stroke: rgba(255,255,255,0.4); stroke-width: 0.6; fill: none; }
+.pitch-svg .field-fill { fill: #111a14; }
+.zone-overlay { position: absolute; inset: 4px; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+.hm-zone { display: flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 800; color: #fff; cursor: pointer; transition: background 0.3s; position: relative; }
+.hm-zone .zone-num { position: absolute; bottom: 4px; right: 6px; font-size: 10px; font-weight: 700; opacity: 0.8; }
+.hm-zone .zone-tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+  padding: 6px 10px; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: all 0.2s; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.hm-zone:hover .zone-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Configs / Equipa ── */
+.config-card { padding: 20px; }
+.config-title { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.config-note { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 16px; line-height: 1.5; }
+.team-editor { display: flex; flex-direction: column; gap: 8px; }
+.player-edit { display: flex; align-items: center; gap: 8px; }
+.player-edit input {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; flex: 1; transition: all 0.2s;
+}
+.player-edit input:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 0 2px rgba(0,255,136,0.2); background: rgba(0,0,0,0.5); }
+.btn-del {
+  width: 38px; height: 38px; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);
+  color: #ff6b6b; border-radius: 8px; cursor: pointer; font-size: 16px; flex-shrink: 0; transition: all 0.2s;
+}
+.btn-del:hover { background: rgba(255,107,107,0.2); transform: scale(1.05); }
+.btn-add {
+  padding: 12px; background: rgba(0,255,136,0.1); border: 1px dashed rgba(0,255,136,0.4);
+  color: #00ff88; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-add:hover { background: rgba(0,255,136,0.15); border-style: solid; }
+.btn-save-team {
+  padding: 12px; background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%); color: #050907; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer; border: none; width: 100%; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+}
+.btn-save-team:hover { filter: brightness(1.1); box-shadow: 0 6px 20px rgba(0,255,136,0.4); transform: translateY(-1px); }
+.btn-danger {
+  padding: 12px; background: rgba(255,74,74,0.1); border: 1px solid rgba(255,74,74,0.3);
+  color: #ff6b6b; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; width: 100%;
+}
+.btn-danger:hover { background: rgba(255,74,74,0.2); box-shadow: 0 4px 15px rgba(255,74,74,0.2); }
+.action-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.action-row button, .action-row label {
+  flex: 1; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; min-width: 140px; text-align: center; display: block;
+}
+.btn-excel { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+.btn-excel:hover { background: rgba(0,255,136,0.2); box-shadow: 0 4px 15px rgba(0,255,136,0.2); transform: translateY(-1px); }
+.btn-save { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: #FFD700; }
+.btn-save:hover { background: rgba(255,215,0,0.2); box-shadow: 0 4px 15px rgba(255,215,0,0.2); transform: translateY(-1px); }
+
+#opp-name-input {
+  width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff;
+  padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; transition: all 0.2s;
+}
+#opp-name-input:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 0 2px rgba(0,255,136,0.2); background: rgba(0,0,0,0.5); }
+
+/* ── Toast (colored) ── */
+#toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; background: rgba(20,25,22,0.9); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; border-radius: 100px; font-weight: 600; font-size: 14px; z-index: 9999;
+  display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  animation: toastIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 90vw; text-align: center;
+}
+#toast.toast-positive { border-color: rgba(0,255,136,0.5); box-shadow: 0 10px 40px rgba(0,255,136,0.2); color: #00ff88; }
+#toast.toast-negative { border-color: rgba(255,107,107,0.5); box-shadow: 0 10px 40px rgba(255,107,107,0.2); color: #ff6b6b; }
+#toast.toast-neutral { border-color: rgba(255,184,74,0.5); box-shadow: 0 10px 40px rgba(255,184,74,0.2); color: #ffb84a; }
+#toast.toast-gold { border-color: rgba(255,215,0,0.5); box-shadow: 0 10px 40px rgba(255,215,0,0.2); color: #FFD700; }
+#toast.toast-info { border-color: rgba(0,183,255,0.5); box-shadow: 0 10px 40px rgba(0,183,255,0.2); color: #00b7ff; }
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px) scale(0.9)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+
+/* ── Empty state ── */
+.empty { color: rgba(255,255,255,0.3); font-size: 13px; text-align: center; padding: 16px; font-style: italic; }
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+
+/* ── Responsive ── */
+@media(min-width:768px) {
+  .main { padding: 24px; gap: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .players-grid { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 12px; }
+  .actions-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card, .timer-panel, .sub-card, .stat-card, .config-card { padding: 24px; }
+  .timer-display { font-size: 42px; }
+  .score-val { font-size: 56px; }
+  .quick-zone-strip { grid-template-columns: repeat(9, 1fr); gap: 8px; padding: 16px; }
+  .qz-btn { padding: 12px 6px; font-size: 12px; }
+}
+@media(min-width:481px) and (max-width:767px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .players-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
+}
+@media(max-width:480px) {
+  header { height: 56px; padding: 0 12px; }
+  .tab-btn { padding: 6px 12px; font-size: 12px; }
+  .actions-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .action-btn { min-height: 50px; font-size: 11px; }
+  .score-val { font-size: 36px; }
+  .timer-display { font-size: 44px; }
+  .timer-panel { padding: 16px; border-radius: 16px; gap: 12px; }
+  .timer-btn-ghost { padding: 8px 12px; font-size: 12px; }
+  .half-btn { padding: 10px; font-size: 12px; }
+  .card, .sub-card, .stat-card, .config-card { padding: 14px; border-radius: 14px; }
+}
+/* Landscape tablet optimization */
+@media(orientation:landscape) and (max-height:500px) {
+  header { height: 44px; }
+  .header-title { font-size: 16px; }
+  .tab-btn { padding: 4px 12px; font-size: 11px; }
+  .timer-panel { padding: 10px 16px; gap: 8px; border-radius: 12px; }
+  .timer-display { font-size: 32px; }
+  .main { padding: 8px; gap: 8px; }
+  .card, .sub-card, .stat-card, .config-card { padding: 10px; border-radius: 12px; }
+  .player-btn { min-height: 48px; padding: 6px 4px; border-radius: 8px; }
+  .player-num { font-size: 16px; }
+  .action-btn { min-height: 42px; padding: 6px 4px; font-size: 10px; border-radius: 8px; }
+  .quick-zone-strip { padding: 8px; gap: 4px; }
+  .qz-btn { padding: 6px 4px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gradient-svg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88" />
+      <stop offset="100%" stop-color="#00b3ff" />
+    </linearGradient>
+  </defs>
+</svg>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      StatsLive
+    </div>
+    <div class="header-tabs">
+      <button class="tab-btn active" onclick="switchTab('jogo')">⚽ Jogo</button>
+      <button class="tab-btn" onclick="switchTab('stats')">📊 Análise</button>
+      <button class="tab-btn" onclick="switchTab('epoca')">🏆 Época</button>
+      <button class="tab-btn" onclick="switchTab('equipa')">⚙️ Configs</button>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="exportDirectExcel()" title="Exportar Excel">📥</button>
+      <button class="icon-btn" onclick="exportJSON()" title="Backup JSON">💾</button>
+    </div>
+  </header>
+
+  <div id="toast"></div>
+
+  <!-- VIEW: ÉPOCA -->
+  <div id="view-epoca" class="view main">
+    
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <button class="tab-btn active" id="btn-sub-arquivo" onclick="switchEpocaTab('arquivo')" style="flex:1;">📂 Arquivo de Jogos</button>
+      <button class="tab-btn" id="btn-sub-dashboard" onclick="switchEpocaTab('dashboard')" style="flex:1; color:#00ff88;">📈 Dashboard Global</button>
+    </div>
+
+    <!-- SUB-VIEW: ARQUIVO -->
+    <div id="epoca-arquivo">
+      <div class="card">
+        <div class="section-title" style="color: #00ff88;">Gestor de Época</div>
+        <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 24px;">
+          Guarde os jogos concluídos no arquivo da época para gerar estatísticas globais consolidadas.
+        </p>
+        
+        <div style="display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="archiveCurrentMatch()" style="flex:1;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Arquivar Jogo Atual
+          </button>
+          <button class="btn-primary" onclick="exportGlobalExcel()" style="flex:1; background:linear-gradient(135deg, #FFD700 0%, #ffaa00 100%); color:#000;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Exportar Excel Global
+          </button>
+          <button class="btn-secondary" onclick="clearSeasonArchive()" style="border-color:#ff3232; color:#ff3232;">
+            Limpar Arquivo
+          </button>
+        </div>
+
+        <div class="section-title">Jogos Arquivados (<span id="season-count">0</span>)</div>
+        <div id="season-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW: DASHBOARD -->
+    <div id="epoca-dashboard" style="display:none; display:flex; flex-direction:column; gap:24px;">
+      
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <div class="stat-card">
+          <div class="card-title">⚽ Golos na Época</div>
+          <div style="display:flex;gap:16px;align-items:baseline;margin-top:4px;">
+            <div>
+              <div class="stat-big" id="global-marcados" style="color:#FFD700;">0</div>
+              <div class="stat-sub">marcados</div>
+            </div>
+            <div>
+              <div class="stat-big" id="global-sofridos" style="color:#ff6b6b;">0</div>
+              <div class="stat-sub">sofridos</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="card-title">👥 MVP Global (Ações)</div>
+          <div id="global-top-players"><div class="empty">Sem dados</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗺️ Mapa de Calor Global</div>
+        <div class="hm-filter-row">
+          <button class="hm-filter-btn active" id="ghm-btn-negative" onclick="setGlobalHmFilter('negative')">Perdas</button>
+          <button class="hm-filter-btn" id="ghm-btn-positive" onclick="setGlobalHmFilter('positive')">Positivas</button>
+          <button class="hm-filter-btn" id="ghm-btn-all" onclick="setGlobalHmFilter('all')">Todas</button>
+        </div>
+        <div class="pitch-heatmap-wrap">
+          <svg class="pitch-svg" viewBox="0 0 68 44" xmlns="http://www.w3.org/2000/svg">
+            <rect x=".5" y=".5" width="67" height="43" class="field-fill" rx="1"></rect>
+            <rect x="2" y="2" width="64" height="40"></rect>
+            <line x1="2" y1="22" x2="66" y2="22"></line>
+            <circle cx="34" cy="22" r="5"></circle>
+            <circle cx="34" cy="22" r=".4" fill="rgba(255,255,255,.6)" stroke="none"></circle>
+            <rect x="19.84" y="2" width="28.32" height="7"></rect>
+            <rect x="28.34" y="2" width="11.32" height="3"></rect>
+            <rect x="19.84" y="35" width="28.32" height="7"></rect>
+            <rect x="28.34" y="39" width="11.32" height="3"></rect>
+          </svg>
+          <div class="zone-overlay">
+            <div class="hm-zone" id="ghm-0" data-zone="Ataque Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-1" data-zone="Ataque Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-2" data-zone="Ataque Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-3" data-zone="Meio Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-4" data-zone="Meio Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-5" data-zone="Meio Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-6" data-zone="Defesa Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-7" data-zone="Defesa Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+            <div class="hm-zone" id="ghm-8" data-zone="Defesa Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Ações por Tipo (Global)</div>
+        <div id="global-action-chart"><div class="empty">Sem dados</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- VIEW 1: JOGO -->
+  <div id="view-jogo" class="view active main">
+
+    <div class="timer-panel">
+      <div class="timer-top">
+        <div class="timer-left">
+          <div class="timer-time-label">Tempo de Jogo</div>
+          <div class="timer-display" id="timer-display">00:00</div>
+        </div>
+        <div class="timer-right">
+          <button class="timer-btn-ghost reset" onclick="resetTimer()">Reset</button>
+          <button class="timer-btn-ghost play-btn" id="btn-play" onclick="toggleTimer()">▶ Iniciar</button>
+        </div>
+      </div>
+      <div class="half-toggle">
+        <button class="half-btn active" id="btn-half-1" onclick="setHalf(1)">1ª Parte</button>
+        <button class="half-btn" id="btn-half-2" onclick="setHalf(2)">2ª Parte</button>
+      </div>
+    </div>
+
+    <!-- Scoreboard with team names -->
+    <div class="scoreboard">
+      <div class="score-team-wrap">
+        <div class="score-team-name home">São Manços</div>
+        <div class="score-val marcados" id="stat-golos-marcados">0</div>
+        <div class="score-label">MARC.</div>
+      </div>
+      <div class="score-div">—</div>
+      <div class="score-team-wrap">
+        <div class="score-team-name away" id="opp-name-display">Adversário</div>
+        <div class="score-val sofridos" id="stat-golos-sofridos">0</div>
+        <div class="score-label">SOFR.</div>
+      </div>
+    </div>
+
+    <!-- Selected Player Banner -->
+    <div class="selected-banner" id="selected-banner">
+      <span class="sb-num" id="sb-num"></span>
+      <span class="sb-name" id="sb-name">Nenhum jogador selecionado</span>
+      <button class="sb-clear" onclick="clearSelection()">✕ Limpar</button>
+    </div>
+
+    <!-- Players -->
+    <div class="card">
+      <div class="players-section">
+        <div class="section-title">Titulares</div>
+        <div class="players-grid" id="players-grid-titulares"></div>
+        <button class="subs-toggle" id="subs-toggle" onclick="toggleSubs()">
+          <span class="arrow">▼</span> Suplentes (<span id="subs-count">7</span>)
+        </button>
+        <div class="subs-grid-wrap" id="subs-grid-wrap">
+          <div class="players-grid" id="players-grid-suplentes"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Action Banner -->
+    <div class="pending-banner" id="pending-banner">
+      <span class="pb-text" id="pb-text">Seleciona a zona...</span>
+      <button class="pb-cancel" onclick="cancelPending()">✕ Cancelar</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="section-title">Registar Ação</div>
+      <div class="actions-grid" id="actions-grid"></div>
+    </div>
+
+    <!-- Quick Zone Strip (visible when action pending) -->
+    <div class="quick-zone-strip" id="quick-zone-strip" style="display:none">
+      <button class="qz-btn" onclick="recordAction('Ataque Esq.')">Atq Esq</button>
+      <button class="qz-btn" onclick="recordAction('Ataque Centro')">Atq Cent</button>
+      <button class="qz-btn" onclick="recordAction('Ataque Dir.')">Atq Dir</button>
+      <button class="qz-btn" onclick="recordAction('Meio Esq.')">M. Esq</button>
+      <button class="qz-btn" onclick="recordAction('Meio Centro')">M. Cent</button>
+      <button class="qz-btn" onclick="recordAction('Meio Dir.')">M. Dir</button>
+      <button class="qz-btn" onclick="recordAction('Defesa Esq.')">Def Esq</button>
+      <button class="qz-btn" onclick="recordAction('Defesa Centro')">Def Cent</button>
+      <button class="qz-btn" onclick="recordAction('Defesa Dir.')">Def Dir</button>
+    </div>
+
+    <!-- Substitutions -->
+    <div class="sub-card">
+      <div class="section-title">🔄 Substituições</div>
+      <div class="sub-row" id="sub-row"></div>
+      <div id="sub-log-list"></div>
+    </div>
+
+    <!-- Opponent -->
+    <div class="card">
+      <div class="section-title" style="color:#c850f5;">🟥 Adversário</div>
+      <div class="opp-row">
+        <button class="opp-btn" onclick="addOppQuick('Canto')">🏳️ Canto</button>
+        <button class="opp-btn" onclick="addOppQuick('Remate')">🎯 Remate</button>
+        <button class="opp-btn" onclick="addOppQuick('Golo Sofrido')">⚽ Golo</button>
+        <button class="opp-btn" onclick="addOppQuick('Falta')">🤕 Falta</button>
+      </div>
+      <div id="opp-actions-list" class="opp-list"></div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card">
+      <div class="undo-bar">
+        <div class="section-title" style="margin:0;">Timeline</div>
+        <button class="undo-btn" onclick="undoLastAction()">↩ Desfazer</button>
+      </div>
+      <div id="timeline-list" class="timeline-list"></div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: ANÁLISE -->
+  <div id="view-stats" class="view main">
+    <div class="card">
+      <div class="scoreboard">
+        <div class="score-team-wrap">
+          <div class="score-team-name home">São Manços</div>
+          <div class="score-val marcados" id="stat-golos-marcados-2">0</div>
+          <div class="score-label">MARC.</div>
+        </div>
+        <div class="score-div">—</div>
+        <div class="score-team-wrap">
+          <div class="score-team-name away" id="opp-name-display-2">Adversário</div>
+          <div class="score-val sofridos" id="stat-golos-sofridos-2">0</div>
+          <div class="score-label">SOFR.</div>
+        </div>
+      </div>
+      <div class="filter-row" style="margin-top:10px;justify-content:center;">
+        <button class="filter-btn active" onclick="setStatHalfFilter('all',this)">Todo</button>
+        <button class="filter-btn" onclick="setStatHalfFilter(1,this)">1ªP</button>
+        <button class="filter-btn" onclick="setStatHalfFilter(2,this)">2ªP</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="card-title">📈 Passes</div>
+        <div class="stat-big" id="stat-pass-pct">0%</div>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="stat-pass-bar" style="width:0%"></div></div>
+        <div class="stat-sub"><span id="stat-pass-certo">0</span> certos · <span id="stat-pass-errado">0</span> falhados</div>
+      </div>
+      <div class="stat-card">
+        <div class="card-title">⚔️ Cruzamentos</div>
+        <div class="stat-big" id="stat-cruz-pct">0%</div>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="stat-cruz-bar" style="width:0%"></div></div>
+        <div class="stat-sub"><span id="stat-cruz-certo">0</span> certos · <span id="stat-cruz-errado">0</span> falhados</div>
+      </div>
+      <div class="stat-card">
+        <div class="card-title">🎯 Remates</div>
+        <div style="display:flex;gap:16px;align-items:baseline;margin-top:4px;">
+          <div>
+            <div class="stat-big" id="stat-remates-certos" style="color:#3ddc84;">0</div>
+            <div class="stat-sub">baliza</div>
+          </div>
+          <div>
+            <div class="stat-big" id="stat-remates-fora" style="color:#ff6b6b;">0</div>
+            <div class="stat-sub">fora</div>
+          </div>
+        </div>
+        <div class="stat-bar-bg" style="margin-top:6px;"><div class="stat-bar-fill" id="stat-remates-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="card-title">👥 Top 5 Envolve.</div>
+        <div id="top-players-list"><div class="empty">Sem dados</div></div>
+      </div>
+    </div>
+
+    <!-- Heatmap with filter -->
+    <div class="card">
+      <div class="card-title">🗺️ Mapa de Campo</div>
+      <div class="hm-filter-row">
+        <button class="hm-filter-btn active" data-hm="negative" onclick="setHmFilter('negative',this)">Perdas</button>
+        <button class="hm-filter-btn" data-hm="positive" onclick="setHmFilter('positive',this)">Positivas</button>
+        <button class="hm-filter-btn" data-hm="all" onclick="setHmFilter('all',this)">Todas</button>
+      </div>
+      <div class="pitch-heatmap-wrap">
+        <svg class="pitch-svg" viewBox="0 0 68 44" xmlns="http://www.w3.org/2000/svg">
+          <rect x=".5" y=".5" width="67" height="43" class="field-fill" rx="1"></rect>
+          <rect x="2" y="2" width="64" height="40"></rect>
+          <line x1="2" y1="22" x2="66" y2="22"></line>
+          <circle cx="34" cy="22" r="5"></circle>
+          <circle cx="34" cy="22" r=".4" fill="rgba(255,255,255,.6)" stroke="none"></circle>
+          <rect x="19.84" y="2" width="28.32" height="7"></rect>
+          <rect x="28.34" y="2" width="11.32" height="3"></rect>
+          <rect x="19.84" y="35" width="28.32" height="7"></rect>
+          <rect x="28.34" y="39" width="11.32" height="3"></rect>
+        </svg>
+        <div class="zone-overlay">
+          <div class="hm-zone" id="hm-0" data-zone="Ataque Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-1" data-zone="Ataque Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-2" data-zone="Ataque Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-3" data-zone="Meio Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-4" data-zone="Meio Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-5" data-zone="Meio Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-6" data-zone="Defesa Esq."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-7" data-zone="Defesa Centro"><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+          <div class="hm-zone" id="hm-8" data-zone="Defesa Dir."><span class="zone-tooltip"></span><span class="zone-num"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discipline -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="card-title">🟨 Disciplina</div>
+        <div style="display:flex;gap:16px;align-items:baseline;margin-top:4px;">
+          <div>
+            <div class="stat-big" id="stat-amarelos" style="color:#FFD700;">0</div>
+            <div class="stat-sub">amarelos</div>
+          </div>
+          <div>
+            <div class="stat-big" id="stat-vermelhos" style="color:#ff3232;">0</div>
+            <div class="stat-sub">vermelhos</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="card-title">🛡️ Defesa</div>
+        <div style="display:flex;gap:16px;align-items:baseline;margin-top:4px;">
+          <div>
+            <div class="stat-big" id="stat-desarmes">0</div>
+            <div class="stat-sub">desarmes</div>
+          </div>
+          <div>
+            <div class="stat-big" id="stat-intercetacoes">0</div>
+            <div class="stat-sub">intrcpt.</div>
+          </div>
+          <div>
+            <div class="stat-big" id="stat-defesas-gr" style="color:#5b9cf6;">0</div>
+            <div class="stat-sub">def. GR</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Ações por Tipo</div>
+      <div id="action-chart"><div class="empty">Sem dados</div></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-excel" onclick="exportDirectExcel()">📊 Exportar .xlsx</button>
+      <button class="btn-save" onclick="saveMatchToHistory()">💾 Guardar Jogo</button>
+    </div>
+    <div style="margin-top:8px;">
+      <input id="opp-name-input" type="text" placeholder="Nome do adversário (ex: Benfica)" style="width:100%;background:#1c2a20;border:1px solid rgba(255,255,255,.08);color:#fff;padding:8px;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+    </div>
+    <div id="match-history" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+
+  <!-- VIEW 3: EQUIPA & CONFIG -->
+  <div id="view-equipa" class="view main">
+    <div class="config-card">
+      <div class="config-title">📁 Importar / Exportar Backup</div>
+      <div class="config-note">Exporta todos os dados (logs, cronómetro, equipa) num ficheiro .json.</div>
+      <div class="action-row" style="margin-bottom:8px;">
+        <button class="btn-excel" onclick="exportJSON()">📦 Exportar Backup</button>
+        <label class="btn-save" style="display:flex;align-items:center;justify-content:center;">
+          <input type="file" style="display:none" accept=".json" onchange="importJSON(event)">
+          📂 Importar Backup
+        </label>
+      </div>
+    </div>
+
+    <div class="config-card">
+      <div class="config-title">⚙️ Configurar Plantel</div>
+      <div class="config-note">Os primeiros 11 jogadores são considerados Titulares.</div>
+      <div class="team-editor" id="team-editor"></div>
+      <button class="btn-add" style="margin-top:10px;" onclick="addPlayerField()">+ Adicionar Jogador</button>
+      <button class="btn-save-team" style="margin-top:8px;" onclick="saveTeam()">💾 Guardar Plantel</button>
+    </div>
+
+    <div class="config-card" style="border-color:rgba(255,74,74,.15);">
+      <div class="card-title" style="color:#ff4a4a;">Zona de Perigo</div>
+      <button class="btn-danger" style="margin-top:4px;" onclick="hardReset()">🗑️ Reset Total (apaga tudo)</button>
+      <button class="btn-excel" style="margin-top:8px;width:100%;" onclick="installApp()">📲 Instalar no Telemóvel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ZONE MODAL (fallback) -->
+<div id="zone-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="zone-title">Onde foi a ação?</div>
+    <div class="zone-grid">
+      <button class="zone-btn" onclick="recordAction('Ataque Esq.')">Ataque Esq.</button>
+      <button class="zone-btn" onclick="recordAction('Ataque Centro')">Ataque Centro</button>
+      <button class="zone-btn" onclick="recordAction('Ataque Dir.')">Ataque Dir.</button>
+      <button class="zone-btn" onclick="recordAction('Meio Esq.')">Meio Esq.</button>
+      <button class="zone-btn" onclick="recordAction('Meio Centro')">Meio Centro</button>
+      <button class="zone-btn" onclick="recordAction('Meio Dir.')">Meio Dir.</button>
+      <button class="zone-btn" onclick="recordAction('Defesa Esq.')">Defesa Esq.</button>
+      <button class="zone-btn" onclick="recordAction('Defesa Centro')">Defesa Centro</button>
+      <button class="zone-btn" onclick="recordAction('Defesa Dir.')">Defesa Dir.</button>
+    </div>
+    <button class="cancel-btn" onclick="closeZoneModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- OPP ZONE MODAL -->
+<div id="opp-zone-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="opp-zone-title">Zona do campo</div>
+    <div class="zone-grid">
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Esq.')">Ataque Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Centro')">Ataque Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Ataque Dir.')">Ataque Dir.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Esq.')">Meio Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Centro')">Meio Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Meio Dir.')">Meio Dir.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Esq.')">Defesa Esq.</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Centro')">Defesa Centro</button>
+      <button class="zone-btn" onclick="confirmOppZone('Defesa Dir.')">Defesa Dir.</button>
+    </div>
+    <button class="cancel-btn" onclick="closeOppZoneModal()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   StatsLive v2 — JavaScript
+   ═══════════════════════════════════════════════ */
+
+const ZONAS = ['Ataque Esq.','Ataque Centro','Ataque Dir.','Meio Esq.','Meio Centro','Meio Dir.','Defesa Esq.','Defesa Centro','Defesa Dir.'];
+
+// ── Extended Actions (new: Passe Certo, Intercetação, Canto, Cartões, Assistência, Defesa GR) ──
+const ACTIONS = [
+  {name:'Passe Certo',score:1,type:'positive'},
+  {name:'Passe Falhado',score:-1,type:'negative'},
+  {name:'Cruzamento Certo',score:1,type:'positive'},
+  {name:'Cruzamento Falhado',score:-1,type:'negative'},
+  {name:'Remate à Baliza',score:1,type:'positive'},
+  {name:'Remate Fora',score:-1,type:'negative'},
+  {name:'Desarme Certo',score:1,type:'positive'},
+  {name:'Intercetação',score:1,type:'positive'},
+  {name:'Perda de Bola',score:-1,type:'negative'},
+  {name:'Falta Sofrida',score:0,type:'neutral'},
+  {name:'Falta Cometida',score:0,type:'neutral'},
+  {name:'Canto',score:0,type:'neutral'},
+  {name:'Golo Marcado',score:1,type:'gold'},
+  {name:'Assistência',score:1,type:'gold'},
+  {name:'Defesa GR',score:1,type:'positive'},
+  {name:'🟨 Amarelo',score:0,type:'card-yellow'},
+  {name:'🟥 Vermelho',score:-1,type:'card-red'},
+  {name:'Golo Sofrido',score:-1,type:'gold'},
+];
+
+const DEFAULT_PLAYERS = [
+  {num:1,name:'GR'},{num:2,name:'Defesa D.'},{num:3,name:'Defesa E.'},
+  {num:4,name:'Central 1'},{num:5,name:'Central 2'},{num:6,name:'Trinco'},
+  {num:8,name:'Médio'},{num:10,name:'Médio Of.'},{num:7,name:'Extremo D.'},
+  {num:11,name:'Extremo E.'},{num:9,name:'Ponta Lança'},
+  {num:12,name:'Suplente 12'},{num:13,name:'Suplente 13'},{num:14,name:'Suplente 14'},
+  {num:15,name:'Suplente 15'},{num:16,name:'Suplente 16'},{num:17,name:'Suplente 17'},{num:18,name:'Suplente 18'}
+];
+
+// ── State ──
+let players = JSON.parse(localStorage.getItem('slv2_team')) || JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
+let logs = JSON.parse(localStorage.getItem('slv2_logs')) || [];
+let oppLogs = JSON.parse(localStorage.getItem('slv2_opp_logs')) || [];
+let subs = JSON.parse(localStorage.getItem('slv2_subs')) || [];
+let seasonArchive = JSON.parse(localStorage.getItem('slv2_season_archive')) || [];
+let seconds = parseInt(localStorage.getItem('slv2_time') || '0');
+let isRunning = localStorage.getItem('slv2_running') === '1';
+let startTimestamp = parseInt(localStorage.getItem('slv2_start_ts') || '0');
+let secondsAtStart = parseInt(localStorage.getItem('slv2_seconds_at_start') || '0');
+let timerInterval = null;
+let selectedPlayer = null;
+let pendingAction = null;
+let pendingScore = 0;
+let pendingOppAction = null;
+let opponentName = localStorage.getItem('slv2_opponent') || '';
+let pendingSubOut = null;
+let half = parseInt(localStorage.getItem('slv2_half') || '1');
+let statHalfFilter = 'all';
+let hmFilter = 'negative';
+let globalHmFilter = 'negative';
+let db;subsOpen = false;
+let useQuickZone = true; // Quick zone mode enabled by default
+let deleteConfirmId = null;
+let deleteConfirmTimer = null;
+
+// ── Restore timer ──
+if (isRunning && startTimestamp > 0) {
+  const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+  seconds = secondsAtStart + elapsed;
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+    seconds = secondsAtStart + elapsed;
+    renderTimer();
+  }, 1000);
+}
+
+// ── Init ──
+window.onload = () => {
+  renderPlayerGrid();
+  renderActionGrid();
+  renderTeamEditor();
+  renderSubRow();
+  renderTimer();
+  updateStats();
+  renderOppActions();
+  renderTimeline();
+  renderMatchHistory();
+  renderSeasonList();
+  updateOppNameDisplay();
+  
+  const oppInput = document.getElementById('opp-name-input');
+  oppInput.value = opponentName;
+  oppInput.addEventListener('input', function() {
+    opponentName = this.value;
+    localStorage.setItem('slv2_opponent', opponentName);
+    updateOppNameDisplay();
+  });
+  
+  // Update play button text if running
+  if (isRunning) {
+    document.getElementById('btn-play').textContent = '⏸ Pausar';
+    document.getElementById('btn-play').classList.add('running');
+  }
+  
+  // Update subs count
+  updateSubsCount();
+};
+
+// ── Tab Switching ──
+function switchTab(tabId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tabId).classList.add('active');
+  
+  // Find the button with onclick containing the tabId
+  const btns = Array.from(document.querySelectorAll('.tab-btn'));
+  const btn = btns.find(b => b.getAttribute('onclick').includes(tabId));
+  if(btn) btn.classList.add('active');
+  
+  if(tabId === 'stats') updateStats();
+  if(tabId === 'epoca') renderSeasonList();
+}
+
+// ── Timer (FIXED: no longer updates secondsAtStart every tick) ──
+function renderTimer() {
+  const m = String(Math.floor(seconds / 60)).padStart(2,'0');
+  const s = String(seconds % 60).padStart(2,'0');
+  document.getElementById('timer-display').textContent = m + ':' + s;
+  localStorage.setItem('slv2_time', seconds);
+}
+
+function toggleTimer() {
+  const btn = document.getElementById('btn-play');
+  if (isRunning) {
+    clearInterval(timerInterval); isRunning = false;
+    secondsAtStart = seconds; // Save current position
+    localStorage.setItem('slv2_running', '0');
+    localStorage.setItem('slv2_seconds_at_start', secondsAtStart);
+    btn.textContent = '▶ Iniciar'; btn.classList.remove('running');
+  } else {
+    isRunning = true;
+    startTimestamp = Date.now();
+    secondsAtStart = seconds;
+    localStorage.setItem('slv2_start_ts', startTimestamp);
+    localStorage.setItem('slv2_seconds_at_start', secondsAtStart);
+    localStorage.setItem('slv2_running', '1');
+    btn.textContent = '⏸ Pausar'; btn.classList.add('running');
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      seconds = secondsAtStart + elapsed;
+      renderTimer();
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval); isRunning = false; seconds = 0; secondsAtStart = 0;
+  localStorage.setItem('slv2_running', '0');
+  localStorage.setItem('slv2_start_ts', '0');
+  localStorage.setItem('slv2_seconds_at_start', '0');
+  renderTimer();
+  document.getElementById('btn-play').textContent = '▶ Iniciar';
+  document.getElementById('btn-play').classList.remove('running');
+}
+
+function setHalf(n) {
+  const prevHalf = half;
+  half = n; localStorage.setItem('slv2_half', half);
+  document.getElementById('btn-half-1').classList.toggle('active', n===1);
+  document.getElementById('btn-half-2').classList.toggle('active', n===2);
+  
+  // Auto-set timer to 45:00 when switching to 2nd half
+  if (n === 2 && prevHalf === 1 && seconds < 2700) {
+    if (confirm('Definir cronómetro para 45:00?')) {
+      clearInterval(timerInterval); isRunning = false;
+      seconds = 2700; secondsAtStart = 2700;
+      localStorage.setItem('slv2_seconds_at_start', '2700');
+      renderTimer();
+      document.getElementById('btn-play').textContent = '▶ Iniciar';
+      document.getElementById('btn-play').classList.remove('running');
+    }
+  }
+  updateStats();
+}
+
+// ── Opponent Name Display ──
+function updateOppNameDisplay() {
+  const name = opponentName || 'Adversário';
+  const d1 = document.getElementById('opp-name-display');
+  const d2 = document.getElementById('opp-name-display-2');
+  if (d1) d1.textContent = name;
+  if (d2) d2.textContent = name;
+}
+
+// ── Player Grid ──
+function renderPlayerGrid() {
+  const titulares = players.slice(0, 11);
+  const suplentes = players.slice(11);
+  const outNums = new Set(subs.map(s=>s.out));
+  const inNums = new Set(subs.map(s=>s.in));
+  
+  const htmlT = titulares.map(p =>
+    `<button class="player-btn${p.num===1?' gr':''}${selectedPlayer&&selectedPlayer.num===p.num?' selected':''}" onclick="selectPlayer(${p.num})">
+      <span class="player-num">#${p.num}</span><span class="player-name">${p.name}</span>
+      ${outNums.has(p.num)?'<span class="player-badge out">Saiu</span>':''}
+      ${inNums.has(p.num)?'<span class="player-badge">Entrou</span>':''}
+    </button>`
+  ).join('');
+  
+  const htmlS = suplentes.map(p =>
+    `<button class="player-btn${selectedPlayer&&selectedPlayer.num===p.num?' selected':''}" onclick="${outNums.has(p.num)?'':'selectPlayer('+p.num+')'}" style="${outNums.has(p.num)?'opacity:.4':''}">
+      <span class="player-num">#${p.num}</span><span class="player-name">${p.name}</span>
+      ${outNums.has(p.num)?'<span class="player-badge out">Saiu</span>':''}
+      ${inNums.has(p.num)?'<span class="player-badge">Entrou</span>':''}
+    </button>`
+  ).join('');
+  
+  document.getElementById('players-grid-titulares').innerHTML = htmlT;
+  document.getElementById('players-grid-suplentes').innerHTML = htmlS;
+  updateSubsCount();
+}
+
+function updateSubsCount() {
+  const el = document.getElementById('subs-count');
+  if (el) el.textContent = players.slice(11).length;
+}
+
+function toggleSubs() {
+  subsOpen = !subsOpen;
+  document.getElementById('subs-toggle').classList.toggle('open', subsOpen);
+  document.getElementById('subs-grid-wrap').classList.toggle('open', subsOpen);
+}
+
+function selectPlayer(num) {
+  const p = players.find(pl => pl.num === num);
+  if (!p) return;
+  const outNums = new Set(subs.map(s=>s.out));
+  if (outNums.has(num)) { showToast('Jogador já saiu!', 'negative'); return; }
+  selectedPlayer = p;
+  renderPlayerGrid();
+  
+  // Update selected banner
+  const banner = document.getElementById('selected-banner');
+  banner.classList.add('show');
+  document.getElementById('sb-num').textContent = '#' + p.num;
+  document.getElementById('sb-name').textContent = p.name;
+  
+  showToast('✅ ' + p.name + ' selecionado', 'info');
+}
+
+function clearSelection() {
+  selectedPlayer = null;
+  document.getElementById('selected-banner').classList.remove('show');
+  renderPlayerGrid();
+}
+
+// ── Actions ──
+function renderActionGrid() {
+  document.getElementById('actions-grid').innerHTML = ACTIONS.map(a =>
+    `<button class="action-btn ${a.type}" onclick="askZone('${a.name}',${a.score})">${a.name}</button>`
+  ).join('');
+}
+
+function askZone(action, score) {
+  if (!selectedPlayer) { showToast('Seleciona um jogador primeiro!', 'neutral'); return; }
+  pendingAction = action; pendingScore = score;
+  
+  if (useQuickZone) {
+    // Quick zone mode — show strip inline
+    document.getElementById('quick-zone-strip').style.display = 'grid';
+    const pb = document.getElementById('pending-banner');
+    document.getElementById('pb-text').textContent = selectedPlayer.name + ' → ' + action + ' — Zona:';
+    pb.classList.add('show');
+    // Scroll to zone strip
+    document.getElementById('quick-zone-strip').scrollIntoView({behavior:'smooth',block:'center'});
+  } else {
+    // Modal mode (fallback)
+    document.getElementById('zone-title').textContent = action;
+    document.getElementById('zone-modal').style.display = 'flex';
+  }
+}
+
+function cancelPending() {
+  pendingAction = null;
+  document.getElementById('quick-zone-strip').style.display = 'none';
+  document.getElementById('pending-banner').classList.remove('show');
+}
+
+function closeZoneModal() { document.getElementById('zone-modal').style.display = 'none'; pendingAction = null; }
+
+function recordAction(zone) {
+  if (!selectedPlayer || !pendingAction) return;
+  const min = Math.floor(seconds / 60);
+  const log = {id:Date.now(),min,half,player:selectedPlayer.name,num:selectedPlayer.num,action:pendingAction,score:pendingScore,zone};
+  logs.unshift(log);
+  localStorage.setItem('slv2_logs', JSON.stringify(logs));
+  
+  // Close modals/strips
+  closeZoneModal();
+  document.getElementById('quick-zone-strip').style.display = 'none';
+  document.getElementById('pending-banner').classList.remove('show');
+  
+  const actionName = pendingAction;
+  const toastType = pendingScore > 0 ? 'positive' : pendingScore < 0 ? 'negative' : 'neutral';
+  
+  // Don't clear selection — keep player selected for rapid entry
+  updateStats(); renderTimeline();
+  showToast('✅ ' + actionName + ' — ' + zone, toastType === 'negative' ? 'negative' : toastType === 'neutral' ? 'neutral' : '');
+}
+
+// ── Substitutions ──
+function renderSubRow() {
+  const outNums = new Set(subs.map(s=>s.out));
+  const inNums = new Set(subs.map(s=>s.in));
+  const titulares = players.slice(0, 11);
+  const suplentes = players.slice(11);
+  const row = document.getElementById('sub-row');
+  if (!row) return;
+  let html = '';
+  titulares.filter(p => !outNums.has(p.num)).forEach(p => {
+    const isPending = pendingSubOut === p.num;
+    html += `<button class="sub-btn out" onclick="startSubOut(${p.num})" style="${isPending?'background:rgba(255,74,74,.3);border-color:#ff6b6b':''}">${isPending?'✓':'⬇'} ${p.name}</button>`;
+  });
+  if (pendingSubOut) {
+    html += ' <span style="font-size:10px;color:rgba(255,255,255,.3);align-self:center;">→</span> ';
+    suplentes.filter(p => !inNums.has(p.num)).forEach(p => {
+      html += `<button class="sub-btn in" onclick="confirmSubIn(${p.num})">⬆ ${p.name}</button>`;
+    });
+    html += ` <button class="sub-btn out" onclick="cancelSub()" style="opacity:.5;margin-left:4px;">✕</button>`;
+  }
+  row.innerHTML = html;
+  
+  const logEl = document.getElementById('sub-log-list');
+  if (logEl) {
+    logEl.innerHTML = subs.slice(0,10).map(s =>
+      `<div class="sub-log">
+        <span class="out-player">⬇ ${s.outName||'#'+s.out}</span>
+        <span class="arrow">→</span>
+        <span class="in-player">⬆ ${s.inName||'#'+s.in}</span>
+        <span class="sub-time">${s.min}'</span>
+      </div>`
+    ).join('');
+  }
+}
+
+function startSubOut(playerNum) {
+  if (pendingSubOut === playerNum) { pendingSubOut = null; renderSubRow(); return; }
+  pendingSubOut = playerNum;
+  renderSubRow();
+  showToast('⬇ Seleciona um suplente', 'info');
+}
+
+function confirmSubIn(inNum) {
+  if (!pendingSubOut) return;
+  const outPlayer = players.find(p => p.num === pendingSubOut);
+  const inPlayer = players.find(p => p.num === inNum);
+  const min = Math.floor(seconds / 60);
+  subs.push({out:pendingSubOut,outName:outPlayer?outPlayer.name:'',in:inNum,inName:inPlayer?inPlayer.name:'',min,half});
+  localStorage.setItem('slv2_subs', JSON.stringify(subs));
+  pendingSubOut = null;
+  renderPlayerGrid(); renderSubRow();
+  showToast('🔄 Substituição: ' + (outPlayer?outPlayer.name:'') + ' → ' + (inPlayer?inPlayer.name:''));
+}
+
+function cancelSub() { pendingSubOut = null; renderSubRow(); }
+
+// ── Stats ──
+function setStatHalfFilter(val, btn) {
+  statHalfFilter = val;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateStats();
+}
+
+function updateStats() {
+  const flog = statHalfFilter === 'all' ? logs : logs.filter(l => l.half === statHalfFilter);
+  const fopp = statHalfFilter === 'all' ? oppLogs : oppLogs.filter(o => o.half === statHalfFilter);
+  
+  const gm = flog.filter(l => l.action === 'Golo Marcado').length;
+  const gs = fopp.filter(o => o.action === 'Golo Sofrido').length;
+  ['stat-golos-marcados','stat-golos-marcados-2'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent = gm; });
+  ['stat-golos-sofridos','stat-golos-sofridos-2'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent = gs; });
+  
+  // Passes
+  const passC = flog.filter(l => l.action === 'Passe Certo').length;
+  const passF = flog.filter(l => l.action === 'Passe Falhado').length;
+  const passPct = passC + passF > 0 ? Math.round((passC / (passC + passF)) * 100) : 0;
+  document.getElementById('stat-pass-pct').textContent = passPct + '%';
+  document.getElementById('stat-pass-bar').style.width = passPct + '%';
+  document.getElementById('stat-pass-certo').textContent = passC;
+  document.getElementById('stat-pass-errado').textContent = passF;
+  
+  // Cruzamentos
+  const cruzC = flog.filter(l => l.action === 'Cruzamento Certo').length;
+  const cruzF = flog.filter(l => l.action === 'Cruzamento Falhado').length;
+  const cruzPct = cruzC + cruzF > 0 ? Math.round((cruzC / (cruzC + cruzF)) * 100) : 0;
+  document.getElementById('stat-cruz-pct').textContent = cruzPct + '%';
+  document.getElementById('stat-cruz-bar').style.width = cruzPct + '%';
+  document.getElementById('stat-cruz-certo').textContent = cruzC;
+  document.getElementById('stat-cruz-errado').textContent = cruzF;
+  
+  // Remates
+  const remC = flog.filter(l => l.action === 'Remate à Baliza').length;
+  const remF = flog.filter(l => l.action === 'Remate Fora').length;
+  const remPct = remC + remF > 0 ? Math.round((remC / (remC + remF)) * 100) : 0;
+  document.getElementById('stat-remates-certos').textContent = remC;
+  document.getElementById('stat-remates-fora').textContent = remF;
+  document.getElementById('stat-remates-bar').style.width = remPct + '%';
+  
+  // Discipline
+  document.getElementById('stat-amarelos').textContent = flog.filter(l => l.action === '🟨 Amarelo').length;
+  document.getElementById('stat-vermelhos').textContent = flog.filter(l => l.action === '🟥 Vermelho').length;
+  
+  // Defense
+  document.getElementById('stat-desarmes').textContent = flog.filter(l => l.action === 'Desarme Certo').length;
+  document.getElementById('stat-intercetacoes').textContent = flog.filter(l => l.action === 'Intercetação').length;
+  document.getElementById('stat-defesas-gr').textContent = flog.filter(l => l.action === 'Defesa GR').length;
+  
+  // Heatmap
+  updateHeatmap(flog);
+  
+  // Top players
+  const counts = {}; flog.forEach(l => { counts[l.player] = (counts[l.player] || 0) + 1; });
+  const top = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
+  document.getElementById('top-players-list').innerHTML = top.map(([name,count], i) =>
+    `<div class="player-stat-row"><span class="player-rank">${i+1}</span><span class="player-stat-name">${name}</span><span class="player-stat-count">${count}</span></div>`
+  ).join('') || '<div class="empty">Sem dados</div>';
+  
+  // Action chart
+  const types = ACTIONS.map(a => a.name);
+  const aCounts = {}; types.forEach(t => { aCounts[t] = flog.filter(l => l.action === t).length; });
+  const maxA = Math.max(1, ...Object.values(aCounts));
+  const chartHtml = types.filter(t => aCounts[t] > 0).map(t => {
+    const act = ACTIONS.find(a => a.name === t);
+    const color = act && (act.type === 'positive' || act.type === 'gold') ? '#3ddc84' 
+                : act && act.type === 'neutral' ? '#ffb84a' 
+                : act && act.type === 'card-yellow' ? '#FFD700'
+                : act && act.type === 'card-red' ? '#ff3232'
+                : '#ff6b6b';
+    const pct = (aCounts[t] / maxA) * 100;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;">
+      <span style="min-width:100px;color:rgba(255,255,255,.6);">${t}</span>
+      <div style="flex:1;height:4px;background:#1c2a20;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div></div>
+      <span style="min-width:20px;text-align:right;color:${color};font-weight:600;">${aCounts[t]}</span>
+    </div>`;
+  }).join('');
+  const ce = document.getElementById('action-chart');
+  if (ce) ce.innerHTML = chartHtml || '<div class="empty">Sem dados</div>';
+}
+
+// ── Heatmap with filter ──
+function setHmFilter(type, btn) {
+  hmFilter = type;
+  document.querySelectorAll('.hm-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const flog = statHalfFilter === 'all' ? logs : logs.filter(l => l.half === statHalfFilter);
+  updateHeatmap(flog);
+}
+
+function updateHeatmap(flog) {
+  let filtered;
+  let baseColor;
+  if (hmFilter === 'negative') {
+    filtered = flog.filter(l => ['Perda de Bola','Passe Falhado','Cruzamento Falhado','Remate Fora'].includes(l.action));
+    baseColor = [255,74,74];
+  } else if (hmFilter === 'positive') {
+    filtered = flog.filter(l => ['Passe Certo','Cruzamento Certo','Remate à Baliza','Desarme Certo','Intercetação','Golo Marcado','Assistência','Defesa GR'].includes(l.action));
+    baseColor = [61,220,132];
+  } else {
+    filtered = flog;
+    baseColor = [91,156,246];
+  }
+  
+  const zCounts = {}; filtered.forEach(l => { zCounts[l.zone] = (zCounts[l.zone] || 0) + 1; });
+  const maxC = Math.max(1, ...Object.values(zCounts));
+  
+  ZONAS.forEach((z, i) => {
+    const el = document.getElementById('hm-' + i);
+    if (!el) return;
+    const c = zCounts[z] || 0;
+    const numEl = el.querySelector('.zone-num');
+    const tipEl = el.querySelector('.zone-tooltip');
+    if (numEl) numEl.textContent = c > 0 ? c : '';
+    if (tipEl) tipEl.textContent = z + ' — ' + (c || '0');
+    el.style.background = c > 0 ? `rgba(${baseColor.join(',')},${0.2 + (c / maxC) * 0.8})` : 'rgba(255,255,255,.03)';
+    el.style.color = c > 0 ? '#fff' : 'rgba(255,255,255,.2)';
+    el.style.fontWeight = c > 0 ? '800' : '600';
+  });
+}
+
+// ── Timeline ──
+function renderTimeline() {
+  document.getElementById('timeline-list').innerHTML = logs.slice(0,30).map(l => {
+    let dot = l.score > 0 ? 'pos' : l.score < 0 ? 'neg' : 'neu';
+    if (l.action === 'Golo Marcado' || l.action === 'Assistência') dot = 'gol';
+    if (l.action === '🟨 Amarelo') dot = 'card-y';
+    if (l.action === '🟥 Vermelho') dot = 'card-r';
+    return `<div class="timeline-item">
+      <span class="tl-dot ${dot}"></span>
+      <span class="tl-time">${l.min}'</span>
+      <span class="tl-num">#${l.num}</span>
+      <span class="tl-name">${l.player}</span>
+      <span class="tl-action">${l.action}</span>
+      <span class="tl-zone">${l.zone}</span>
+      <button class="tl-del" data-id="${l.id}" onclick="deleteLog(${l.id})" title="Apagar">✕</button>
+    </div>`;
+  }).join('') || '<div class="empty">Sem ações registadas</div>';
+}
+
+function deleteLog(id) {
+  const el = document.querySelector(`.tl-del[data-id="${id}"]`);
+  if (deleteConfirmId === id) {
+    clearTimeout(deleteConfirmTimer);
+    logs = logs.filter(l => l.id !== id);
+    localStorage.setItem('slv2_logs', JSON.stringify(logs));
+    deleteConfirmId = null;
+    updateStats(); renderTimeline();
+    showToast('🗑️ Ação apagada', 'negative');
+  } else {
+    deleteConfirmId = id;
+    if (el) { el.classList.add('confirm'); el.textContent = '✓'; }
+    deleteConfirmTimer = setTimeout(() => {
+      deleteConfirmId = null;
+      if (el) { el.classList.remove('confirm'); el.textContent = '✕'; }
+    }, 2000);
+  }
+}
+
+function undoLastAction() {
+  if (!logs.length) { showToast('Nada para desfazer', 'neutral'); return; }
+  const undone = logs.shift();
+  localStorage.setItem('slv2_logs', JSON.stringify(logs));
+  updateStats(); renderTimeline();
+  showToast('↩ Desfeito: ' + undone.action, 'info');
+}
+
+// ── Opponent ──
+function addOppQuick(action) {
+  pendingOppAction = action;
+  document.getElementById('opp-zone-title').textContent = action + ' — Zona';
+  document.getElementById('opp-zone-modal').style.display = 'flex';
+}
+function closeOppZoneModal() { document.getElementById('opp-zone-modal').style.display = 'none'; pendingOppAction = null; }
+function confirmOppZone(zone) {
+  if (!pendingOppAction) return;
+  const min = Math.floor(seconds / 60);
+  oppLogs.unshift({id:Date.now(),min,action:pendingOppAction,zone,half});
+  localStorage.setItem('slv2_opp_logs', JSON.stringify(oppLogs));
+  closeOppZoneModal();
+  renderOppActions(); updateStats();
+  showToast('🟥 ' + pendingOppAction + ' — ' + zone, 'negative');
+}
+
+function renderOppActions() {
+  document.getElementById('opp-actions-list').innerHTML = oppLogs.slice(0,8).map(o =>
+    `<div class="opp-item">
+      <span class="opp-name">${o.min}' ${o.action}</span>
+      <span class="opp-zone">${o.zone}</span>
+      <button class="opp-del" data-id="${o.id}" onclick="deleteOppLog(${o.id})" title="Apagar">✕</button>
+    </div>`
+  ).join('') || '<div class="empty">Nenhuma ação</div>';
+}
+
+// FIXED: Single deleteOppLog with confirm
+function deleteOppLog(id) {
+  const el = document.querySelector(`.opp-del[data-id="${id}"]`);
+  if (deleteConfirmId === id) {
+    clearTimeout(deleteConfirmTimer);
+    oppLogs = oppLogs.filter(o => o.id !== id);
+    localStorage.setItem('slv2_opp_logs', JSON.stringify(oppLogs));
+    deleteConfirmId = null;
+    renderOppActions(); updateStats();
+    showToast('🗑️ Ação apagada', 'negative');
+  } else {
+    deleteConfirmId = id;
+    if (el) { el.style.opacity = '1'; el.style.background = 'rgba(255,74,74,.3)'; el.textContent = '✓'; }
+    deleteConfirmTimer = setTimeout(() => {
+      deleteConfirmId = null;
+      if (el) { el.style.opacity = '.3'; el.style.background = ''; el.textContent = '✕'; }
+    }, 2000);
+  }
+}
+
+// ── Team Editor ──
+function renderTeamEditor() {
+  document.getElementById('team-editor').innerHTML = players.map((p,i) =>
+    `<div class="player-edit">
+      <input type="number" value="${p.num}" min="1" max="99" style="max-width:55px;" onchange="updatePlayerNum(${i},this.value)">
+      <input type="text" value="${p.name}" placeholder="Nome" style="flex:1;" onchange="players[${i}].name=this.value">
+      <button class="btn-del" onclick="removePlayer(${i})">✕</button>
+    </div>`
+  ).join('');
+}
+
+function updatePlayerNum(idx, val) {
+  const num = parseInt(val);
+  if (!num || num < 1 || num > 99) { showToast('Número inválido (1-99)', 'negative'); return; }
+  // Check duplicate
+  if (players.some((p,i) => i !== idx && p.num === num)) {
+    showToast('Número ' + num + ' já existe!', 'negative'); return;
+  }
+  players[idx].num = num;
+}
+
+function addPlayerField() {
+  const nextNum = (players.length ? Math.max(...players.map(p=>p.num)) : 0) + 1;
+  players.push({num: nextNum, name: 'Jogador ' + nextNum});
+  renderTeamEditor();
+}
+function removePlayer(idx) { players.splice(idx, 1); renderTeamEditor(); }
+function saveTeam() { localStorage.setItem('slv2_team', JSON.stringify(players)); renderPlayerGrid(); showToast('💾 Plantel guardado!'); }
+
+// ── Match History ──
+function saveMatchToHistory() {
+  const entry = {
+    id:Date.now(),
+    date:new Date().toLocaleDateString('pt-PT'),
+    opponent:opponentName||'—',
+    golos:logs.filter(l=>l.action==='Golo Marcado').length,
+    sofridos:oppLogs.filter(o=>o.action==='Golo Sofrido').length
+  };
+  const history = JSON.parse(localStorage.getItem('slv2_history') || '[]');
+  history.unshift(entry); if (history.length > 20) history.pop();
+  localStorage.setItem('slv2_history', JSON.stringify(history));
+  renderMatchHistory();
+  showToast('💾 Jogo guardado!', 'gold');
+}
+
+function renderMatchHistory() {
+  const history = JSON.parse(localStorage.getItem('slv2_history') || '[]');
+  const el = document.getElementById('match-history');
+  if (!el) return;
+  el.innerHTML = history.slice(0,10).map(h =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#1c2a20;border-radius:6px;font-size:11px;">
+      <span style="font-weight:700;color:rgba(255,255,255,.5);min-width:70px;">${h.date}</span>
+      <span style="color:#c850f5;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.opponent}</span>
+      <span style="font-weight:800;color:#3ddc84;">${h.golos}</span>
+      <span style="color:rgba(255,255,255,.15);">—</span>
+      <span style="font-weight:800;color:#c850f5;">${h.sofridos}</span>
+      <button onclick="deleteHistoryEntry(${h.id})" style="background:rgba(255,74,74,.08);border:1px solid rgba(255,74,74,.15);color:#ff6b6b;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 6px;opacity:.4;" title="Apagar">✕</button>
+    </div>`
+  ).join('') || '<div class="empty" style="font-size:11px;">Sem jogos guardados</div>';
+}
+
+function deleteHistoryEntry(id) {
+  let history = JSON.parse(localStorage.getItem('slv2_history') || '[]');
+  history = history.filter(h => h.id !== id);
+  localStorage.setItem('slv2_history', JSON.stringify(history));
+  renderMatchHistory();
+}
+
+// ── Season Manager (Gestor de Época) ──
+function archiveCurrentMatch() {
+  if (logs.length === 0 && oppLogs.length === 0) {
+    showToast('Não há dados no jogo atual para arquivar!', 'neutral');
+    return;
+  }
+  if (!confirm('Deseja arquivar este jogo na época atual? Os dados no separador "Jogo" serão apagados para iniciar um novo jogo.')) return;
+  
+  const matchData = {
+    id: Date.now(),
+    date: new Date().toLocaleDateString('pt-PT') + ' ' + new Date().toLocaleTimeString('pt-PT', {hour: '2-digit', minute:'2-digit'}),
+    opponent: opponentName || 'Desconhecido',
+    logs: [...logs],
+    oppLogs: [...oppLogs]
+  };
+  
+  seasonArchive.push(matchData);
+  localStorage.setItem('slv2_season_archive', JSON.stringify(seasonArchive));
+  
+  // Limpar jogo atual
+  localStorage.removeItem('slv2_logs'); localStorage.removeItem('slv2_opp_logs');
+  localStorage.removeItem('slv2_subs'); localStorage.removeItem('slv2_time');
+  localStorage.removeItem('slv2_half'); localStorage.removeItem('slv2_history');
+  localStorage.removeItem('slv2_running'); localStorage.removeItem('slv2_start_ts');
+  localStorage.removeItem('slv2_seconds_at_start'); localStorage.removeItem('slv2_opponent');
+  logs = []; oppLogs = []; subs = []; seconds = 0; half = 1; opponentName = '';
+  resetTimer(); setHalf(1);
+  renderPlayerGrid(); renderSubRow(); updateStats(); renderOppActions(); renderTimeline(); renderMatchHistory(); updateOppNameDisplay();
+  clearSelection();
+  
+  renderSeasonList();
+  showToast('🏆 Jogo arquivado com sucesso!');
+}
+
+function clearSeasonArchive() {
+  if (!confirm('ATENÇÃO: Vai apagar todos os jogos arquivados da época. Esta ação não pode ser revertida. Continuar?')) return;
+  seasonArchive = [];
+  localStorage.removeItem('slv2_season_archive');
+  renderSeasonList();
+  showToast('🗑️ Arquivo da época limpo.', 'negative');
+}
+
+function renderSeasonList() {
+  const container = document.getElementById('season-list');
+  document.getElementById('season-count').textContent = seasonArchive.length;
+  
+  if (seasonArchive.length === 0) {
+    container.innerHTML = '<div class="empty">Nenhum jogo arquivado nesta época.</div>';
+    return;
+  }
+  
+  container.innerHTML = seasonArchive.slice().reverse().map(m => `
+    <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); padding:16px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-size:16px; font-weight:700; color:#fff; margin-bottom:4px;">vs ${m.opponent}</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.5);">${m.date}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px; color:rgba(0,255,136,0.8);">${m.logs.length} Ações da Equipa</div>
+        <div style="font-size:12px; color:rgba(255,74,74,0.8);">${m.oppLogs.length} Ações Adv.</div>
+      </div>
+    </div>
+  `).join('');
+  
+  updateGlobalStats();
+}
+
+function switchEpocaTab(tabId) {
+  document.getElementById('epoca-arquivo').style.display = tabId === 'arquivo' ? 'block' : 'none';
+  document.getElementById('epoca-dashboard').style.display = tabId === 'dashboard' ? 'flex' : 'none';
+  
+  document.getElementById('btn-sub-arquivo').classList.toggle('active', tabId === 'arquivo');
+  document.getElementById('btn-sub-dashboard').classList.toggle('active', tabId === 'dashboard');
+  
+  if (tabId === 'dashboard') updateGlobalStats();
+}
+
+function updateGlobalStats() {
+  if (seasonArchive.length === 0) return;
+  
+  let allLogs = [];
+  let allOppLogs = [];
+  seasonArchive.forEach(m => { allLogs = allLogs.concat(m.logs); allOppLogs = allOppLogs.concat(m.oppLogs); });
+  
+  // Golos Globais
+  const golosM = allLogs.filter(l => l.action === 'Golo Marcado').length;
+  const golosS = allLogs.filter(l => l.action === 'Golo Sofrido').length + allOppLogs.filter(o => o.action === 'Golo Sofrido').length;
+  document.getElementById('global-marcados').textContent = golosM;
+  document.getElementById('global-sofridos').textContent = golosS;
+  
+  // Top Players Globais
+  const counts = {}; allLogs.forEach(l => { counts[l.player] = (counts[l.player] || 0) + 1; });
+  const top = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
+  document.getElementById('global-top-players').innerHTML = top.map(([name,count], i) =>
+    `<div class="player-stat-row"><span class="player-rank">${i+1}</span><span class="player-stat-name">${name}</span><span class="player-stat-count">${count}</span></div>`
+  ).join('') || '<div class="empty">Sem dados</div>';
+  
+  // Action Chart Global
+  const types = ACTIONS.map(a => a.name);
+  const aCounts = {}; types.forEach(t => { aCounts[t] = allLogs.filter(l => l.action === t).length; });
+  const maxA = Math.max(1, ...Object.values(aCounts));
+  const chartHtml = types.filter(t => aCounts[t] > 0).map(t => {
+    const act = ACTIONS.find(a => a.name === t);
+    const color = act && (act.type === 'positive' || act.type === 'gold') ? '#3ddc84' 
+                : act && act.type === 'neutral' ? '#ffb84a' 
+                : act && act.type === 'card-yellow' ? '#FFD700'
+                : act && act.type === 'card-red' ? '#ff3232'
+                : '#ff6b6b';
+    const pct = (aCounts[t] / maxA) * 100;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;">
+      <span style="min-width:100px;color:rgba(255,255,255,.6);">${t}</span>
+      <div style="flex:1;height:4px;background:#1c2a20;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div></div>
+      <span style="min-width:20px;text-align:right;color:${color};font-weight:600;">${aCounts[t]}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('global-action-chart').innerHTML = chartHtml || '<div class="empty">Sem dados</div>';
+  
+  // Update Global Heatmap
+  updateGlobalHeatmap(allLogs);
+}
+
+function setGlobalHmFilter(type) {
+  globalHmFilter = type;
+  document.getElementById('ghm-btn-negative').classList.toggle('active', type === 'negative');
+  document.getElementById('ghm-btn-positive').classList.toggle('active', type === 'positive');
+  document.getElementById('ghm-btn-all').classList.toggle('active', type === 'all');
+  
+  let allLogs = [];
+  seasonArchive.forEach(m => { allLogs = allLogs.concat(m.logs); });
+  updateGlobalHeatmap(allLogs);
+}
+
+function updateGlobalHeatmap(flog) {
+  let filtered;
+  let baseColor;
+  if (globalHmFilter === 'negative') {
+    filtered = flog.filter(l => ['Perda de Bola','Passe Falhado','Cruzamento Falhado','Remate Fora'].includes(l.action));
+    baseColor = [255,74,74];
+  } else if (globalHmFilter === 'positive') {
+    filtered = flog.filter(l => ['Passe Certo','Cruzamento Certo','Remate à Baliza','Desarme Certo','Intercetação','Golo Marcado','Assistência','Defesa GR'].includes(l.action));
+    baseColor = [61,220,132];
+  } else {
+    filtered = flog;
+    baseColor = [91,156,246];
+  }
+  
+  const zCounts = {}; filtered.forEach(l => { zCounts[l.zone] = (zCounts[l.zone] || 0) + 1; });
+  const maxC = Math.max(1, ...Object.values(zCounts));
+  
+  ZONAS.forEach((z, i) => {
+    const el = document.getElementById('ghm-' + i);
+    if (!el) return;
+    const c = zCounts[z] || 0;
+    const numEl = el.querySelector('.zone-num');
+    const tipEl = el.querySelector('.zone-tooltip');
+    if (numEl) numEl.textContent = c > 0 ? c : '';
+    if (tipEl) tipEl.textContent = z + ' — ' + (c || '0');
+    el.style.background = c > 0 ? `rgba(${baseColor.join(',')},${0.2 + (c / maxC) * 0.8})` : 'rgba(255,255,255,.03)';
+    el.style.color = c > 0 ? '#fff' : 'rgba(255,255,255,.2)';
+    el.style.fontWeight = c > 0 ? '800' : '600';
+  });
+}
+
+function exportGlobalExcel() {
+  if (typeof XLSX === 'undefined') { showToast('A carregar biblioteca...', 'neutral'); return; }
+  if (seasonArchive.length === 0) { showToast('Não há jogos no arquivo para exportar!', 'neutral'); return; }
+  
+  let allLogs = [];
+  let allOppLogs = [];
+  
+  seasonArchive.forEach(match => {
+    // Add match info to each log for the database
+    const mLogs = match.logs.map(l => ({...l, matchDate: match.date, matchOpp: match.opponent}));
+    const mOppLogs = match.oppLogs.map(o => ({...o, matchDate: match.date, matchOpp: match.opponent}));
+    allLogs = allLogs.concat(mLogs);
+    allOppLogs = allOppLogs.concat(mOppLogs);
+  });
+  
+  // Sheet 1: Base de Dados Global
+  const dataRows = [['Jogo','Data/Hora','Minuto','Parte','Jogador','Numero','Ação','Zona']];
+  allLogs.forEach(log => dataRows.push([log.matchOpp, log.matchDate, log.min, log.half||1, log.player, log.num, log.action, log.zone]));
+  if (allOppLogs.length > 0) {
+    allOppLogs.forEach(o => dataRows.push([o.matchOpp, o.matchDate, o.min, o.half||'', 'ADV', '', o.action, o.zone]));
+  }
+  
+  // Sheet 2: Resumo Global
+  const resumoRows = [
+    ['RESUMO GLOBAL DA ÉPOCA', `Total de Jogos: ${seasonArchive.length}`],['',''],
+    ['Golos Marcados',allLogs.filter(l=>l.action==='Golo Marcado').length],
+    ['Golos Sofridos',allLogs.filter(l=>l.action==='Golo Sofrido').length + allOppLogs.filter(o=>o.action==='Golo Sofrido').length],
+    ['',''],
+    ['Passes Certos',allLogs.filter(l=>l.action==='Passe Certo').length],
+    ['Passes Falhados',allLogs.filter(l=>l.action==='Passe Falhado').length],
+    ['Cruzamentos Certos',allLogs.filter(l=>l.action==='Cruzamento Certo').length],
+    ['Cruzamentos Falhados',allLogs.filter(l=>l.action==='Cruzamento Falhado').length],
+    ['Remates à Baliza',allLogs.filter(l=>l.action==='Remate à Baliza').length],
+    ['Remates Fora',allLogs.filter(l=>l.action==='Remate Fora').length],
+    ['Remates (Adversário)',allOppLogs.filter(o=>o.action==='Remate').length],
+    ['Desarmes',allLogs.filter(l=>l.action==='Desarme Certo').length],
+    ['Intercetações',allLogs.filter(l=>l.action==='Intercetação').length],
+    ['Defesas GR',allLogs.filter(l=>l.action==='Defesa GR').length],
+    ['Perdas de Bola',allLogs.filter(l=>l.action==='Perda de Bola').length],
+    ['Faltas Cometidas',allLogs.filter(l=>l.action==='Falta Cometida').length],
+    ['Faltas Sofridas',allLogs.filter(l=>l.action==='Falta Sofrida').length],
+    ['Faltas (Adversário)',allOppLogs.filter(o=>o.action==='Falta').length],
+    ['Cartões Amarelos',allLogs.filter(l=>l.action==='🟨 Amarelo').length],
+    ['Cartões Vermelhos',allLogs.filter(l=>l.action==='🟥 Vermelho').length],
+    ['Assistências',allLogs.filter(l=>l.action==='Assistência').length],
+    ['Cantos (Equipa)',allLogs.filter(l=>l.action==='Canto').length],
+    ['Cantos (Adversário)',allOppLogs.filter(o=>o.action==='Canto').length]
+  ];
+  
+  // Sheet 3: Stats Globais por Jogador
+  const actionTypes = ACTIONS.map(a => a.name);
+  const playerStatsHeader = ['Jogador',...actionTypes,'Total Ações'];
+  const playerStats = [playerStatsHeader];
+  const playerSet = [...new Set(allLogs.map(l => l.player))];
+  
+  playerSet.forEach(name => {
+    const pLogs = allLogs.filter(l => l.player === name);
+    const row = [name];
+    actionTypes.forEach(t => row.push(pLogs.filter(l => l.action === t).length));
+    row.push(pLogs.length);
+    playerStats.push(row);
+  });
+  
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(dataRows);
+  const ws2 = XLSX.utils.aoa_to_sheet(resumoRows);
+  const ws3 = XLSX.utils.aoa_to_sheet(playerStats);
+  
+  ws1['!cols'] = [{wch:15},{wch:18},{wch:8},{wch:6},{wch:15},{wch:6},{wch:18},{wch:15}];
+  ws2['!cols'] = [{wch:25},{wch:15}];
+  ws3['!cols'] = [{wch:18},...actionTypes.map(()=>({wch:8})),{wch:12}];
+  
+  XLSX.utils.book_append_sheet(wb, ws1, 'BD Global');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumo Época');
+  XLSX.utils.book_append_sheet(wb, ws3, 'Rendimento Global (Plantel)');
+  
+  XLSX.writeFile(wb, `StatsLive_Epoca_Global_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📊 Excel Global da Época descarregado!');
+}
+
+// ── Export/Import ──
+function exportJSON() {
+  const data = {players,logs,oppLogs,seconds,half,subs,opponentName,seasonArchive};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `StatsLive_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('📦 Backup exportado!');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.players) { players = d.players; localStorage.setItem('slv2_team', JSON.stringify(players)); }
+      if (d.logs) { logs = d.logs; localStorage.setItem('slv2_logs', JSON.stringify(logs)); }
+      if (d.oppLogs) { oppLogs = d.oppLogs; localStorage.setItem('slv2_opp_logs', JSON.stringify(oppLogs)); }
+      if (d.subs) { subs = d.subs; localStorage.setItem('slv2_subs', JSON.stringify(subs)); }
+      if (d.seasonArchive) { seasonArchive = d.seasonArchive; localStorage.setItem('slv2_season_archive', JSON.stringify(seasonArchive)); }
+      if (d.seconds != null) seconds = d.seconds;
+      if (d.half) half = d.half;
+      if (d.opponentName) { opponentName = d.opponentName; localStorage.setItem('slv2_opponent', opponentName); }
+      renderPlayerGrid(); renderTeamEditor(); renderTimer(); updateStats(); renderOppActions(); renderTimeline(); renderSubRow(); updateOppNameDisplay(); renderSeasonList();
+      showToast('✅ Backup carregado!');
+    } catch(err) { showToast('Erro ao carregar backup', 'negative'); }
+  };
+  reader.readAsText(file);
+}
+
+// ── Advanced Excel Export ──
+function exportDirectExcel() {
+  if (typeof XLSX === 'undefined') { showToast('A carregar...', 'neutral'); return; }
+  if (logs.length === 0) { showToast('Sem dados para exportar!', 'neutral'); return; }
+  const dateStr = new Date().toLocaleDateString('pt-PT');
+  
+  // Sheet 1: Base de Dados
+  const dataRows = [['Data','Minuto','Parte','Jogador','Numero','Ação','Zona']];
+  logs.forEach(log => dataRows.push([dateStr,log.min,log.half||1,log.player,log.num,log.action,log.zone]));
+  if (oppLogs.length > 0) {
+    dataRows.push(['']); dataRows.push(['--- ADVERSÁRIO ---']);
+    oppLogs.forEach(o => dataRows.push(['',o.min,o.half||'','ADV','',o.action,o.zone]));
+  }
+  
+  // Sheet 2: Resumo
+  const resumoRows = [
+    ['RESUMO — ' + (opponentName || 'São Manços'), dateStr],['',''],
+    ['Golos Marcados',logs.filter(l=>l.action==='Golo Marcado').length],
+    ['Golos Sofridos',logs.filter(l=>l.action==='Golo Sofrido').length + oppLogs.filter(o=>o.action==='Golo Sofrido').length],
+    ['',''],
+    ['Passes Certos',logs.filter(l=>l.action==='Passe Certo').length],
+    ['Passes Falhados',logs.filter(l=>l.action==='Passe Falhado').length],
+    ['Cruzamentos Certos',logs.filter(l=>l.action==='Cruzamento Certo').length],
+    ['Cruzamentos Falhados',logs.filter(l=>l.action==='Cruzamento Falhado').length],
+    ['Remates à Baliza',logs.filter(l=>l.action==='Remate à Baliza').length],
+    ['Remates Fora',logs.filter(l=>l.action==='Remate Fora').length],
+    ['Remates (Adversário)',oppLogs.filter(o=>o.action==='Remate').length],
+    ['Desarmes',logs.filter(l=>l.action==='Desarme Certo').length],
+    ['Intercetações',logs.filter(l=>l.action==='Intercetação').length],
+    ['Defesas GR',logs.filter(l=>l.action==='Defesa GR').length],
+    ['Perdas de Bola',logs.filter(l=>l.action==='Perda de Bola').length],
+    ['Faltas Cometidas',logs.filter(l=>l.action==='Falta Cometida').length],
+    ['Faltas Sofridas',logs.filter(l=>l.action==='Falta Sofrida').length],
+    ['Faltas (Adversário)',oppLogs.filter(o=>o.action==='Falta').length],
+    ['Cartões Amarelos',logs.filter(l=>l.action==='🟨 Amarelo').length],
+    ['Cartões Vermelhos',logs.filter(l=>l.action==='🟥 Vermelho').length],
+    ['Assistências',logs.filter(l=>l.action==='Assistência').length],
+    ['Cantos (Equipa)',logs.filter(l=>l.action==='Canto').length],
+    ['Cantos (Adversário)',oppLogs.filter(o=>o.action==='Canto').length],
+    ['',''],
+    ['SUBSTITUIÇÕES'],
+  ];
+  subs.forEach(s => resumoRows.push([`${s.min}' — ${s.outName} → ${s.inName}`, `Parte ${s.half}`]));
+  
+  // Sheet 3: Stats por Jogador
+  const actionTypes = ACTIONS.map(a => a.name);
+  const playerStatsHeader = ['Jogador','Nº',...actionTypes,'Total'];
+  const playerStats = [playerStatsHeader];
+  const playerSet = [...new Set(logs.map(l => l.player))];
+  playerSet.forEach(name => {
+    const pLogs = logs.filter(l => l.player === name);
+    const pNum = pLogs[0]?.num || '';
+    const row = [name, pNum];
+    actionTypes.forEach(t => row.push(pLogs.filter(l => l.action === t).length));
+    row.push(pLogs.length);
+    playerStats.push(row);
+  });
+  
+  // Sheet 4: 1ª vs 2ª Parte
+  const compRows = [['Ação','1ª Parte','2ª Parte','Total']];
+  actionTypes.forEach(t => {
+    const h1 = logs.filter(l => l.action === t && l.half === 1).length;
+    const h2 = logs.filter(l => l.action === t && l.half === 2).length;
+    if (h1 + h2 > 0) compRows.push([t, h1, h2, h1+h2]);
+  });
+  
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(dataRows);
+  const ws2 = XLSX.utils.aoa_to_sheet(resumoRows);
+  const ws3 = XLSX.utils.aoa_to_sheet(playerStats);
+  const ws4 = XLSX.utils.aoa_to_sheet(compRows);
+  ws1['!cols'] = [{wch:12},{wch:8},{wch:6},{wch:15},{wch:6},{wch:18},{wch:15}];
+  ws2['!cols'] = [{wch:22},{wch:12}];
+  ws3['!cols'] = [{wch:15},{wch:5},...actionTypes.map(()=>({wch:8})),{wch:6}];
+  ws4['!cols'] = [{wch:20},{wch:10},{wch:10},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Base de Dados');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumo');
+  XLSX.utils.book_append_sheet(wb, ws3, 'Stats por Jogador');
+  XLSX.utils.book_append_sheet(wb, ws4, '1ª vs 2ª Parte');
+  XLSX.writeFile(wb, `StatsLive_${opponentName||'jogo'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📊 Excel descarregado!');
+}
+
+// ── Reset ──
+function hardReset() {
+  if (!confirm('Apagar TODOS os dados? Logs, adversário, estatísticas e timer — a equipa mantém-se.')) return;
+  localStorage.removeItem('slv2_logs'); localStorage.removeItem('slv2_opp_logs');
+  localStorage.removeItem('slv2_subs'); localStorage.removeItem('slv2_time');
+  localStorage.removeItem('slv2_half'); localStorage.removeItem('slv2_history');
+  localStorage.removeItem('slv2_running'); localStorage.removeItem('slv2_start_ts');
+  localStorage.removeItem('slv2_seconds_at_start'); localStorage.removeItem('slv2_opponent');
+  logs = []; oppLogs = []; subs = []; seconds = 0; half = 1; opponentName = '';
+  resetTimer(); setHalf(1);
+  renderPlayerGrid(); renderSubRow(); updateStats(); renderOppActions(); renderTimeline(); renderMatchHistory(); updateOppNameDisplay();
+  clearSelection();
+  showToast('🗑️ Dados limpos!', 'negative');
+}
+
+// ── Toast (colored) ──
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = ''; // Reset
+  if (type === 'negative') t.classList.add('toast-negative');
+  else if (type === 'neutral') t.classList.add('toast-neutral');
+  else if (type === 'gold') t.classList.add('toast-gold');
+  else if (type === 'info') t.classList.add('toast-info');
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 2500);
+}
+
+// ── PWA Install ──
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(r => { if (r.outcome === 'accepted') showToast('📲 A instalar...'); deferredPrompt = null; });
+  } else if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    showToast('💡 Safari: Partilhar → Ecrã Inicial', 'info');
+  } else {
+    showToast('💡 Chrome: ⋮ → Mais ferramentas → Criar atalho', 'info');
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    if (location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body></html>
